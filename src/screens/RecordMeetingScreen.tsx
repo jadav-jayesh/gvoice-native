@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from "expo-audio";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { formatDuration } from "../core/lib/format";
@@ -37,6 +38,7 @@ export function RecordMeetingScreen({ navigation }: Props) {
     })();
     return () => {
       if (timer.current) clearInterval(timer.current);
+      deactivateKeepAwake();
     };
   }, []);
 
@@ -54,6 +56,9 @@ export function RecordMeetingScreen({ navigation }: Props) {
     try {
       await recorder.prepareToRecordAsync();
       recorder.record();
+      // Keep the screen on so an auto screen-timeout lock can't suspend the app
+      // and stop the recording mid-meeting.
+      await activateKeepAwakeAsync();
       setPhase("recording");
       startTimer();
     } catch {
@@ -63,6 +68,7 @@ export function RecordMeetingScreen({ navigation }: Props) {
 
   async function stopAndUpload() {
     stopTimer();
+    deactivateKeepAwake();
     setPhase("uploading");
     try {
       await recorder.stop();
