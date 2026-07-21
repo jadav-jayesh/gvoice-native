@@ -1,23 +1,30 @@
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React from "react";
-import { RefreshControl, StyleSheet, View } from "react-native";
-import { listMeetings } from "../core/api/endpoints";
-import type { MeetingListItem } from "../core/api/types";
-import { formatRelative, platformLabel, platformTone, statusLabel, statusTone } from "../core/lib/format";
+import React, { useEffect, useMemo, useState } from "react";
+import { RefreshControl, StyleSheet, TextInput, View } from "react-native";
+import { getMeetingStats, listMeetings } from "../core/api/endpoints";
+import type { BotPlatform, MeetingListItem } from "../core/api/types";
+import { formatRelative, isNegativeMeeting, platformLabel, platformTone, statusLabel, statusTone } from "../core/lib/format";
 import { useTheme } from "../core/theme/ThemeProvider";
 import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { EmptyState } from "../ui/EmptyState";
+import { Icon } from "../ui/Icon";
 import { Screen } from "../ui/Screen";
+import { Segmented } from "../ui/Segmented";
 import { Text } from "../ui/Text";
+import { JoinMeetingSheet } from "../features/meetings/JoinMeetingSheet";
 import type { MeetingsStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<MeetingsStackParamList, "MeetingsList">;
 
-function MeetingRow({ item, onPress }: { item: MeetingListItem; onPress: () => void }) {
+const MeetingRow = React.memo(function MeetingRow({ item, onPress }: { item: MeetingListItem; onPress: () => void }) {
+  const { theme } = useTheme();
+  const critical = isNegativeMeeting(item);
   return (
-    <Card style={{ marginBottom: 12 }} onPress={onPress}>
+    <Card style={{ marginBottom: 12, borderLeftWidth: critical ? 3 : 1, borderLeftColor: critical ? theme.color.danger : theme.color.line }} onPress={onPress}>
       <Text variant="heading" numberOfLines={1}>
         {item.meetingName || "Untitled meeting"}
       </Text>
@@ -40,56 +47,131 @@ function MeetingRow({ item, onPress }: { item: MeetingListItem; onPress: () => v
       ) : null}
     </Card>
   );
+});
+
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <Card style={{ flexGrow: 1, flexBasis: "46%", paddingVertical: 12 }}>
+      <Text style={{ fontSize: 20, fontWeight: "700" }}>{value}</Text>
+      <Text variant="caption" tone="mute">
+        {label}
+      </Text>
+    </Card>
+  );
 }
 
 export function MeetingsListScreen({ navigation }: Props) {
   const { theme } = useTheme();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [platform, setPlatform] = useState<BotPlatform | "">("");
+  const [joinOpen, setJoinOpen] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
-    queryKey: ["meetings", { page: 1, pageSize: 20 }],
-    queryFn: () => listMeetings({ page: 1, pageSize: 20 })
+    queryKey: ["meetings", { page: 1, platform, search }],
+    queryFn: () => listMeetings({ page: 1, pageSize: 20, platform: platform || undefined, search: search || undefined })
   });
+  const { data: stats } = useQuery({ queryKey: ["meetingStats"], queryFn: getMeetingStats });
+
+  const items = data?.items ?? [];
+  const input = {
+    height: 46,
+    borderWidth: 1,
+    borderColor: theme.color.line,
+    borderRadius: theme.radii.md,
+    paddingHorizontal: 40,
+    color: theme.color.ink,
+    backgroundColor: theme.color.surface,
+    fontSize: theme.fontSize.md
+  };
+
+  const header = useMemo(
+    () => (
+      <View style={{ paddingTop: theme.spacing.lg }}>
+        <View style={styles.headRow}>
+          <Text variant="title">Meetings</Text>
+          <Button title="Join" onPress={() => setJoinOpen(true)} style={{ height: 40 }} />
+        </View>
+
+        <View style={[styles.grid, { marginTop: 14 }]}>
+          <StatPill label="Total" value={String(stats?.total ?? data?.total ?? items.length)} />
+          <StatPill label="Recorded" value={String(stats?.recorded ?? 0)} />
+          <StatPill label="Positive" value={stats?.positiveShare != null ? `${stats.positiveShare}%` : "—"} />
+          <StatPill label="Action items" value={String(stats?.actionItems ?? 0)} />
+        </View>
+
+        <View style={{ marginTop: 14 }}>
+          <View style={{ position: "absolute", left: 12, top: 14, zIndex: 1 }}>
+            <Icon name="Search" size={18} color={theme.color.inkFaint} />
+          </View>
+          <TextInput value={searchInput} onChangeText={setSearchInput} placeholder="Search meetings…" placeholderTextColor={theme.color.inkFaint} autoCapitalize="none" style={input} />
+        </View>
+
+        <View style={{ marginTop: 12, marginBottom: 6 }}>
+          <Segmented<BotPlatform | "">
+            value={platform}
+            onChange={setPlatform}
+            options={[
+              { value: "", label: "All" },
+              { value: "google_meet", label: "Meet" },
+              { value: "microsoft_teams", label: "Teams" },
+              { value: "zoom", label: "Zoom" }
+            ]}
+          />
+        </View>
+      </View>
+    ),
+    [stats, data?.total, items.length, searchInput, platform, theme]
+  );
 
   return (
     <Screen padded={false}>
-      {isLoading ? (
-        <View style={styles.center}>
-          <Text tone="mute">Loading meetings…</Text>
-        </View>
-      ) : isError ? (
-        <View style={styles.center}>
+      {isError ? (
+        <View style={{ padding: 40, alignItems: "center" }}>
           <Text tone="danger">Couldn't load meetings.</Text>
         </View>
       ) : (
         <FlashList
-          data={data?.items ?? []}
+          data={items}
           keyExtractor={(m) => m.sessionId}
-          contentContainerStyle={{ padding: theme.spacing.lg }}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={theme.color.accent} />
-          }
+          contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: 24 }}
+          ListHeaderComponent={header}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={theme.color.accent} />}
           renderItem={({ item }) => (
-            <MeetingRow
-              item={item}
-              onPress={() =>
-                navigation.navigate("MeetingDetail", {
-                  sessionId: item.sessionId,
-                  title: item.meetingName
-                })
-              }
-            />
+            <MeetingRow item={item} onPress={() => navigation.navigate("MeetingDetail", { sessionId: item.sessionId, title: item.meetingName })} />
           )}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text tone="mute">No meetings yet.</Text>
-            </View>
+            isLoading ? (
+              <Text tone="mute" style={{ textAlign: "center", padding: 24 }}>
+                Loading meetings…
+              </Text>
+            ) : (
+              <EmptyState icon="Meetings" title="No meetings match" description="Try a different search or filter." />
+            )
           }
         />
       )}
+
+      <JoinMeetingSheet
+        visible={joinOpen}
+        onClose={() => setJoinOpen(false)}
+        onCreated={(sessionId) => {
+          setJoinOpen(false);
+          refetch();
+          navigation.navigate("MeetingDetail", { sessionId });
+        }}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" },
-  center: { padding: 40, alignItems: "center" }
+  headRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }
 });

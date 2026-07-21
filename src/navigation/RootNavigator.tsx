@@ -2,10 +2,12 @@ import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from "@react
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../core/auth/AuthProvider";
 import { useTheme } from "../core/theme/ThemeProvider";
+import { Icon, type IconName } from "../ui/Icon";
 import { LoginScreen } from "../screens/LoginScreen";
+import { SignupScreen } from "../screens/SignupScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { MeetingsListScreen } from "../screens/MeetingsListScreen";
 import { MeetingDetailScreen } from "../screens/MeetingDetailScreen";
@@ -17,11 +19,11 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tabs = createBottomTabNavigator<AppTabsParamList>();
 const MeetingsStack = createNativeStackNavigator<MeetingsStackParamList>();
 
-const TAB_ICON: Record<keyof AppTabsParamList, string> = {
-  Dashboard: "▦",
-  Meetings: "🎙",
-  Insights: "📊",
-  Profile: "👤"
+const TAB_ICON: Record<keyof AppTabsParamList, IconName> = {
+  Dashboard: "Dashboard",
+  Meetings: "Mic",
+  Insights: "Insights",
+  Profile: "User"
 };
 
 function MeetingsNavigator() {
@@ -46,9 +48,7 @@ function AppTabs() {
         tabBarActiveTintColor: theme.color.accent,
         tabBarInactiveTintColor: theme.color.inkFaint,
         tabBarStyle: { backgroundColor: theme.color.bgElev, borderTopColor: theme.color.line },
-        tabBarIcon: ({ color }) => (
-          <Text style={{ fontSize: 18, color }}>{TAB_ICON[route.name]}</Text>
-        )
+        tabBarIcon: ({ color }) => <Icon name={TAB_ICON[route.name]} size={22} color={color} />
       })}
     >
       <Tabs.Screen name="Dashboard" component={DashboardScreen} />
@@ -95,6 +95,7 @@ export function RootNavigator() {
       ) : (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>
           <AuthStack.Screen name="Login" component={LoginScreen} />
+          <AuthStack.Screen name="Signup" component={SignupScreen} />
         </AuthStack.Navigator>
       )}
     </NavigationContainer>

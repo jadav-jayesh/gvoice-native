@@ -1,13 +1,17 @@
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Button } from "../ui/Button";
 import { Screen } from "../ui/Screen";
 import { Text } from "../ui/Text";
 import { useAuth } from "../core/auth/AuthProvider";
 import { useTheme } from "../core/theme/ThemeProvider";
 import { UnauthorizedError } from "../core/api/client";
+import type { AuthStackParamList } from "../navigation/types";
 
-export function LoginScreen() {
+type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
+
+export function LoginScreen({ navigation }: Props) {
   const { theme } = useTheme();
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
@@ -77,6 +81,12 @@ export function LoginScreen() {
             ) : null}
             <Button title="Sign in" onPress={onSubmit} loading={busy} disabled={!email || !password} />
           </View>
+
+          <Pressable onPress={() => navigation.navigate("Signup")} style={{ marginTop: 20, alignItems: "center" }}>
+            <Text tone="mute">
+              New to gVoice? <Text tone="accent">Create an account</Text>
+            </Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Screen>

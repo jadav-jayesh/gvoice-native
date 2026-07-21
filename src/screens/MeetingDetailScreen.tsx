@@ -1,27 +1,115 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React from "react";
-import { StyleSheet, View } from "react-native";
-import { getMeeting } from "../core/api/endpoints";
-import { formatRelative, isMeetingInProgress, platformLabel, platformTone, statusLabel, statusTone } from "../core/lib/format";
+import React, { useMemo, useState } from "react";
+import { Linking, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
+import { API_BASE_URL } from "../core/config";
+import { deleteMeeting, getMeeting } from "../core/api/endpoints";
+import type { Meeting } from "../core/api/types";
+import { sentimentHex } from "../core/lib/colors";
+import {
+  buildFathomTranscript,
+  formatDuration,
+  formatRelative,
+  isMeetingInProgress,
+  platformLabel,
+  platformTone,
+  statusLabel,
+  statusTone
+} from "../core/lib/format";
+import { useTheme } from "../core/theme/ThemeProvider";
+import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Icon } from "../ui/Icon";
+import { ProgressBar } from "../ui/ProgressBar";
 import { Screen } from "../ui/Screen";
+import { SectionTitle } from "../ui/Section";
 import { Text } from "../ui/Text";
+import { MomReportView } from "../features/meetings/MomReportView";
+import { deriveMoments } from "../features/meetings/moments";
+import { RecordingPlayer, RecordingUnavailable } from "../features/meetings/RecordingPlayer";
+import { SentimentTimeline } from "../features/meetings/SentimentTimeline";
+import { ShareSheet } from "../features/meetings/ShareSheet";
+import { TranscriptList } from "../features/meetings/TranscriptList";
 import type { MeetingsStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<MeetingsStackParamList, "MeetingDetail">;
+type Tab = "summary" | "actions" | "moments" | "speakers" | "minutes";
 
-// M0 shows the core meeting fields. Transcript / MoM / sentiment / recording get
-// their own sections in later milestones (M3–M4). While the pipeline is still
-// running, poll every 5s so the status + summary fill in live.
-export function MeetingDetailScreen({ route }: Props) {
+const TABS: { key: Tab; label: string }[] = [
+  { key: "summary", label: "Summary" },
+  { key: "actions", label: "Actions" },
+  { key: "moments", label: "Moments" },
+  { key: "speakers", label: "Speakers" },
+  { key: "minutes", label: "Minutes" }
+];
+
+function IconButton({ name, onPress, color }: { name: any; onPress: () => void; color?: string }) {
+  const { theme } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: theme.radii.md,
+        borderWidth: 1,
+        borderColor: theme.color.line,
+        backgroundColor: theme.color.surface,
+        alignItems: "center",
+        justifyContent: "center"
+      }}
+    >
+      <Icon name={name} size={18} color={color ?? theme.color.inkMute} />
+    </Pressable>
+  );
+}
+
+export function MeetingDetailScreen({ route, navigation }: Props) {
   const { sessionId } = route.params;
+  const { theme } = useTheme();
+  const qc = useQueryClient();
+
   const { data: meeting, isLoading, isError } = useQuery({
     queryKey: ["meeting", sessionId],
     queryFn: () => getMeeting(sessionId),
-    refetchInterval: (query) => (query.state.data && isMeetingInProgress(query.state.data.status) ? 5000 : false)
+    refetchInterval: (q) => (q.state.data && isMeetingInProgress(q.state.data.status) ? 4000 : false)
   });
+
+  const [tab, setTab] = useState<Tab>("summary");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [seekTo, setSeekTo] = useState<number | undefined>(undefined);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [speakerFilter, setSpeakerFilter] = useState<string | undefined>(undefined);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [done, setDone] = useState<Record<number, boolean>>({});
+  const [deleting, setDeleting] = useState(false);
+
+  const segments = meeting?.diarizedTranscript ?? [];
+  const transcriptDuration = useMemo(
+    () => (segments.length ? Math.max(...segments.map((s) => s.endTime)) : 0),
+    [segments]
+  );
+  const effectiveDuration = videoDuration || transcriptDuration;
+  const speakers = useMemo(() => [...new Set(segments.map((s) => s.speaker).filter(Boolean))], [segments]);
+  const moments = useMemo(() => (meeting ? deriveMoments(meeting) : []), [meeting]);
+
+  function seek(t: number) {
+    setCurrentTime(t);
+    setSeekTo(t);
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
+    try {
+      await deleteMeeting(sessionId);
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+      navigation.goBack();
+    } catch {
+      setDeleting(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -33,65 +121,381 @@ export function MeetingDetailScreen({ route }: Props) {
   if (isError || !meeting) {
     return (
       <Screen>
-        <Text tone="danger">Couldn't load this meeting.</Text>
+        <Card>
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            <Icon name="AlertCircle" size={18} color={theme.color.danger} />
+            <Text tone="danger">Failed to load this meeting.</Text>
+          </View>
+        </Card>
       </Screen>
     );
   }
 
+  const overall = meeting.sentimentSummary?.overall;
+  const inProgress = isMeetingInProgress(meeting.status);
+
   return (
     <Screen scroll>
-      <Text variant="title">{meeting.meetingName || "Untitled meeting"}</Text>
-      <View style={styles.metaRow}>
+      {/* Header */}
+      <View style={styles.badgeRow}>
         <Badge label={platformLabel(meeting.platform)} tone={platformTone(meeting.platform)} />
         <Badge label={statusLabel(meeting.status)} tone={statusTone(meeting.status)} />
+        {overall ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sentimentHex(overall.label) }} />
+            <Text variant="caption" tone="mute">
+              {overall.label} · {overall.score.toFixed(2)}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <Text variant="title">{meeting.meetingName || "Untitled meeting"}</Text>
+      <View style={styles.metaRow}>
+        <Icon name="Calendar" size={13} color={theme.color.inkFaint} />
         <Text variant="caption" tone="faint">
-          {formatRelative(meeting.startedAt ?? meeting.createdAt)}
+          {formatRelative(meeting.endedAt ?? meeting.startedAt ?? meeting.createdAt)}
         </Text>
+        {effectiveDuration > 0 ? (
+          <>
+            <Icon name="Clock" size={13} color={theme.color.inkFaint} />
+            <Text variant="caption" tone="faint">
+              {formatDuration(effectiveDuration)}
+            </Text>
+          </>
+        ) : null}
+        {meeting.participants.length > 0 ? (
+          <>
+            <Icon name="Users" size={13} color={theme.color.inkFaint} />
+            <Text variant="caption" tone="faint">
+              {meeting.participants.length}
+            </Text>
+          </>
+        ) : null}
       </View>
 
-      {meeting.summary ? (
+      {/* Actions */}
+      <View style={styles.actions}>
+        <View style={{ flex: 1 }}>
+          <Button title="Share" variant="secondary" onPress={() => setShareOpen(true)} />
+        </View>
+        {segments.length > 0 ? (
+          <IconButton name="Download" onPress={() => Share.share({ message: buildFathomTranscript(meeting, API_BASE_URL) })} />
+        ) : null}
+        {meeting.recordingUrl ? (
+          <IconButton name="Video" onPress={() => Linking.openURL(meeting.recordingUrl as string)} />
+        ) : null}
+        <IconButton name="Close" color={theme.color.danger} onPress={confirmDelete} />
+      </View>
+
+      {/* Processing */}
+      {inProgress ? (
         <Card style={{ marginTop: 16 }}>
-          <Text variant="label" tone="mute" style={{ marginBottom: 6 }}>
-            SUMMARY
-          </Text>
-          <Text variant="body" tone="soft">
-            {meeting.summary}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Icon name="Clock" size={16} color={theme.color.warning} />
+            <Text variant="label">Processing — this page updates automatically.</Text>
+          </View>
+          {meeting.meetingLogs?.length ? (
+            <Text variant="caption" tone="mute" style={{ marginTop: 6 }}>
+              {meeting.meetingLogs[meeting.meetingLogs.length - 1].message}
+            </Text>
+          ) : null}
         </Card>
       ) : null}
 
-      {meeting.actionItems.length > 0 ? (
-        <Card style={{ marginTop: 16 }}>
-          <Text variant="label" tone="mute" style={{ marginBottom: 10 }}>
-            ACTION ITEMS
+      {/* Player + timeline */}
+      <View style={{ marginTop: 16, gap: 8 }}>
+        {meeting.recordingUrl ? (
+          <RecordingPlayer
+            uri={meeting.recordingUrl}
+            seekTo={seekTo}
+            onProgress={(t, d) => {
+              setCurrentTime(t);
+              if (d) setVideoDuration(d);
+            }}
+          />
+        ) : (
+          <RecordingUnavailable />
+        )}
+        <SentimentTimeline segments={segments} durationSeconds={effectiveDuration} currentTime={currentTime} onSeek={seek} />
+        <View style={styles.rowBetween}>
+          <Text variant="caption" tone="faint">
+            {formatDuration(currentTime)}
           </Text>
-          {meeting.actionItems.map((a, i) => (
-            <View key={i} style={styles.actionRow}>
-              <Text tone="accent">•</Text>
-              <Text variant="body" style={{ flex: 1 }}>
-                {a.task}
-                {a.assignee ? ` — ${a.assignee}` : ""}
+          <Text variant="caption" tone="faint">
+            {formatDuration(effectiveDuration)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18 }} contentContainerStyle={{ gap: 8 }}>
+        {TABS.map((t) => {
+          const active = t.key === tab;
+          return (
+            <Pressable
+              key={t.key}
+              onPress={() => setTab(t.key)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: theme.radii.pill,
+                backgroundColor: active ? theme.color.accent : theme.color.surfaceHi
+              }}
+            >
+              <Text variant="label" style={{ color: active ? "#fff" : theme.color.inkMute }}>
+                {t.label}
               </Text>
-            </View>
-          ))}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={{ marginTop: 14 }}>
+        {tab === "summary" ? <SummaryTab meeting={meeting} /> : null}
+        {tab === "actions" ? <ActionsTab meeting={meeting} done={done} setDone={setDone} /> : null}
+        {tab === "moments" ? <MomentsTab moments={moments} onSeek={seek} /> : null}
+        {tab === "speakers" ? (
+          <SpeakersTab meeting={meeting} active={speakerFilter} onFilter={(s) => setSpeakerFilter((f) => (f === s ? undefined : s))} />
+        ) : null}
+        {tab === "minutes" ? <MomReportView meeting={meeting} /> : null}
+      </View>
+
+      {/* Transcript */}
+      <Card style={{ marginTop: 16 }}>
+        <SectionTitle title="Transcript" icon="Users" />
+        {speakers.length > 1 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 6 }}>
+            <FilterChip label="All" active={!speakerFilter} onPress={() => setSpeakerFilter(undefined)} />
+            {speakers.map((s) => (
+              <FilterChip key={s} label={s} active={speakerFilter === s} onPress={() => setSpeakerFilter(s)} />
+            ))}
+          </ScrollView>
+        ) : null}
+        <TranscriptList segments={segments} currentTime={currentTime} onSeek={seek} speakerFilter={speakerFilter} />
+      </Card>
+
+      {/* Participants */}
+      {meeting.participants.length > 0 ? (
+        <Card style={{ marginTop: 16, marginBottom: 8 }}>
+          <SectionTitle title="Participants" icon="Users" count={meeting.participants.length} />
+          <View style={{ gap: 10 }}>
+            {meeting.participants.map((p, i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Avatar name={p.name} size={28} />
+                <Text variant="body">{p.name}</Text>
+              </View>
+            ))}
+          </View>
         </Card>
       ) : null}
 
-      {meeting.participants.length > 0 ? (
-        <Card style={{ marginTop: 16 }}>
-          <Text variant="label" tone="mute" style={{ marginBottom: 6 }}>
-            PARTICIPANTS
-          </Text>
-          <Text variant="body" tone="soft">
-            {meeting.participants.map((p) => p.name).join(", ")}
-          </Text>
-        </Card>
-      ) : null}
+      <ShareSheet
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        sessionId={sessionId}
+        initialEnabled={meeting.shareEnabled}
+        initialToken={meeting.shareToken}
+      />
+      {deleting ? null : null}
     </Screen>
   );
 }
 
+function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const { theme } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: theme.radii.pill,
+        backgroundColor: active ? theme.color.accent : theme.color.surfaceHi
+      }}
+    >
+      <Text variant="caption" style={{ color: active ? "#fff" : theme.color.inkMute }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SummaryTab({ meeting }: { meeting: Meeting }) {
+  const purpose = meeting.momReport?.meetingPurpose || meeting.momReport?.executiveSummary || meeting.summary?.split(/[.!?]/)[0];
+  const takeaways = (meeting.momReport?.keyTakeaways ?? []).filter((k) => k.title);
+  if (!purpose && takeaways.length === 0) {
+    return (
+      <Card>
+        <Text tone="mute">No summary available yet.</Text>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      {purpose ? (
+        <>
+          <SectionTitle title="Meeting purpose" icon="Sparkles" />
+          <Text variant="body" tone="soft" style={{ lineHeight: 22, marginBottom: takeaways.length ? 16 : 0 }}>
+            {purpose}
+          </Text>
+        </>
+      ) : null}
+      {takeaways.length > 0 ? (
+        <>
+          <SectionTitle title="Key takeaways" icon="Check" />
+          <View style={{ gap: 10 }}>
+            {takeaways.map((k, i) => (
+              <View key={i} style={{ flexDirection: "row", gap: 8 }}>
+                <Text tone="accent">•</Text>
+                <Text variant="body" style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "700" }}>{k.title}</Text>
+                  {k.detail ? ` — ${k.detail}` : ""}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+    </Card>
+  );
+}
+
+function ActionsTab({ meeting, done, setDone }: { meeting: Meeting; done: Record<number, boolean>; setDone: (f: (d: Record<number, boolean>) => Record<number, boolean>) => void }) {
+  const { theme } = useTheme();
+  if (meeting.actionItems.length === 0) {
+    return (
+      <Card>
+        <Text tone="mute">No action items captured for this meeting.</Text>
+      </Card>
+    );
+  }
+  const completed = Object.values(done).filter(Boolean).length;
+  return (
+    <Card>
+      <View style={styles.rowBetween}>
+        <Text variant="caption" tone="mute">
+          {meeting.actionItems.length} item{meeting.actionItems.length === 1 ? "" : "s"} · tap to mark complete
+        </Text>
+        <Text variant="caption" tone="mute">
+          {completed}/{meeting.actionItems.length} done
+        </Text>
+      </View>
+      <View style={{ gap: 12, marginTop: 12 }}>
+        {meeting.actionItems.map((a, i) => {
+          const isDone = !!done[i];
+          return (
+            <Pressable key={i} onPress={() => setDone((d) => ({ ...d, [i]: !d[i] }))} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 6,
+                  borderWidth: 1.5,
+                  borderColor: isDone ? theme.color.success : theme.color.line,
+                  backgroundColor: isDone ? theme.color.success : "transparent",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 1
+                }}
+              >
+                {isDone ? <Icon name="Check" size={12} color="#fff" /> : null}
+              </View>
+              <Text variant="body" style={{ flex: 1, textDecorationLine: isDone ? "line-through" : "none", color: isDone ? theme.color.inkFaint : theme.color.ink }}>
+                {a.task}
+                {a.assignee ? ` — ${a.assignee}` : ""}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
+function MomentsTab({ moments, onSeek }: { moments: ReturnType<typeof deriveMoments>; onSeek: (t: number) => void }) {
+  if (moments.length === 0) {
+    return (
+      <Card>
+        <Text tone="mute">No key moments detected for this meeting.</Text>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <View style={{ gap: 14 }}>
+        {moments.map((m, i) => (
+          <Pressable key={i} onPress={() => onSeek(m.startTime)} style={{ flexDirection: "row", gap: 10 }}>
+            <Avatar name={m.speaker || "?"} size={28} />
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                <Text variant="label">{m.speaker}</Text>
+                <Badge label={m.label} tone={m.label === "positive" ? "positive" : m.label === "negative" ? "negative" : "neutral"} />
+                <Text variant="caption" tone="faint">
+                  {formatDuration(m.startTime)}
+                </Text>
+              </View>
+              {m.quote ? (
+                <Text variant="body" tone="soft" style={{ fontStyle: "italic" }}>
+                  “{m.quote}”
+                </Text>
+              ) : null}
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function SpeakersTab({ meeting, active, onFilter }: { meeting: Meeting; active?: string; onFilter: (s: string) => void }) {
+  const { theme } = useTheme();
+  const counts: Record<string, number> = {};
+  for (const s of meeting.diarizedTranscript ?? []) {
+    if (!s.speaker) continue;
+    counts[s.speaker] = (counts[s.speaker] ?? 0) + 1;
+  }
+  const perSpeaker = meeting.sentimentSummary?.perSpeaker ?? [];
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const max = rows.length ? rows[0][1] : 1;
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <Text tone="mute">No speakers detected.</Text>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <View style={{ gap: 14 }}>
+        {rows.map(([name, count]) => {
+          const sent = perSpeaker.find((p) => p.speaker === name);
+          const isActive = active === name;
+          return (
+            <Pressable key={name} onPress={() => onFilter(name)} style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+              <Avatar name={name} size={30} />
+              <View style={{ flex: 1 }}>
+                <View style={styles.rowBetween}>
+                  <Text variant="label" style={{ color: isActive ? theme.color.accent : theme.color.ink }}>
+                    {name}
+                  </Text>
+                  <Text variant="caption" tone="faint">
+                    {count} segments
+                  </Text>
+                </View>
+                <ProgressBar value={count / max} />
+              </View>
+              {sent ? <Badge label={sent.score.toFixed(2)} tone={sent.label === "positive" ? "positive" : sent.label === "negative" ? "negative" : "neutral"} /> : null}
+            </Pressable>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" },
-  actionRow: { flexDirection: "row", gap: 8, marginBottom: 8 }
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" },
+  actions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16 },
+  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }
 });
