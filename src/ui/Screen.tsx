@@ -1,6 +1,5 @@
 import React from "react";
 import { ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../core/theme/ThemeProvider";
 
 // Themed page wrapper. `scroll` wraps content in a ScrollView; otherwise a plain
@@ -31,7 +30,10 @@ export function Screen({
       <View style={[styles.flex, pad, contentStyle]}>{children}</View>
     );
 
-  return <SafeAreaView style={[styles.flex, { backgroundColor: theme.color.bg }]} edges={["top"]}>{body}</SafeAreaView>;
+  // No top safe-area inset here: every screen sits under a navigation header
+  // (or centers its own content), so an extra top inset just re-adds the
+  // status-bar height below the header as a visible gap.
+  return <View style={[styles.flex, { backgroundColor: theme.color.bg }]}>{body}</View>;
 }
 
 const styles = StyleSheet.create({ flex: { flex: 1 } });
