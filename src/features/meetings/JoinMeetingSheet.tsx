@@ -8,7 +8,10 @@ import { Segmented } from "../../ui/Segmented";
 import { Sheet } from "../../ui/Sheet";
 import { Text } from "../../ui/Text";
 
-const SAMPLE: Record<BotPlatform, string> = {
+// Joinable platforms only — in-person is captured via the recorder, not a URL join.
+type JoinPlatform = Exclude<BotPlatform, "in_person">;
+
+const SAMPLE: Record<JoinPlatform, string> = {
   google_meet: "https://meet.google.com/abc-defg-hij",
   microsoft_teams: "https://teams.microsoft.com/l/meetup-join/…",
   zoom: "https://zoom.us/j/1234567890"
@@ -26,7 +29,7 @@ export function JoinMeetingSheet({
   onCreated: (sessionId: string) => void;
 }) {
   const { theme } = useTheme();
-  const [platform, setPlatform] = useState<BotPlatform>("google_meet");
+  const [platform, setPlatform] = useState<JoinPlatform>("google_meet");
   const [url, setUrl] = useState("");
   const [passcode, setPasscode] = useState("");
   const [touched, setTouched] = useState(false);
@@ -91,7 +94,7 @@ export function JoinMeetingSheet({
       <Text variant="label" tone="mute" style={{ marginBottom: 8 }}>
         Platform
       </Text>
-      <Segmented<BotPlatform>
+      <Segmented<JoinPlatform>
         value={platform}
         onChange={setPlatform}
         options={[

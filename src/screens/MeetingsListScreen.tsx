@@ -95,7 +95,10 @@ export function MeetingsListScreen({ navigation }: Props) {
       <View style={{ paddingTop: theme.spacing.lg }}>
         <View style={styles.headRow}>
           <Text variant="title">Meetings</Text>
-          <Button title="Join" onPress={() => setJoinOpen(true)} style={{ height: 40 }} />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Button title="Record" variant="secondary" onPress={() => navigation.navigate("RecordMeeting")} style={{ height: 40 }} />
+            <Button title="Join" onPress={() => setJoinOpen(true)} style={{ height: 40 }} />
+          </View>
         </View>
 
         <View style={[styles.grid, { marginTop: 14 }]}>
@@ -126,7 +129,7 @@ export function MeetingsListScreen({ navigation }: Props) {
         </View>
       </View>
     ),
-    [stats, data?.total, items.length, searchInput, platform, theme]
+    [stats, data?.total, items.length, searchInput, platform, theme, navigation]
   );
 
   return (

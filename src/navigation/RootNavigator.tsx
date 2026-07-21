@@ -11,6 +11,7 @@ import { SignupScreen } from "../screens/SignupScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { MeetingsListScreen } from "../screens/MeetingsListScreen";
 import { MeetingDetailScreen } from "../screens/MeetingDetailScreen";
+import { RecordMeetingScreen } from "../screens/RecordMeetingScreen";
 import { InsightsScreen } from "../screens/InsightsScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import type { AppTabsParamList, AuthStackParamList, MeetingsStackParamList } from "./types";
@@ -35,6 +36,7 @@ function MeetingsNavigator() {
         component={MeetingDetailScreen}
         options={({ route }) => ({ title: route.params.title ?? "Meeting" })}
       />
+      <MeetingsStack.Screen name="RecordMeeting" component={RecordMeetingScreen} options={{ title: "Record" }} />
     </MeetingsStack.Navigator>
   );
 }

@@ -26,7 +26,13 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "gVoice records your in-person meetings using the microphone."
+        }
+      ]
     ],
     "extra": {
       "apiBaseUrl": "https://20.198.80.63.nip.io"

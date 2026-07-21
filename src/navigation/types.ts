@@ -3,6 +3,7 @@ import type { NavigatorScreenParams } from "@react-navigation/native";
 export type MeetingsStackParamList = {
   MeetingsList: undefined;
   MeetingDetail: { sessionId: string; title?: string };
+  RecordMeeting: undefined;
 };
 
 export type AppTabsParamList = {
