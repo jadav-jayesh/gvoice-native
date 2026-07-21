@@ -1,31 +1,36 @@
+import { FileSystemUploadType, uploadAsync } from "expo-file-system/legacy";
 import { nativeCookieStore } from "../../core/api/cookieStore";
 import { API_BASE_URL } from "../../core/config";
 
-// Upload a locally-recorded in-person meeting. Multipart via fetch + FormData so
-// the native cookie jar carries the session cookies; the csrf cookie is echoed
-// as a header (same double-submit scheme as the rest of the API). Content-Type
-// is left unset so fetch adds the multipart boundary itself.
+// Upload a locally-recorded in-person meeting.
+//
+// Uses expo-file-system's native multipart upload instead of fetch + FormData:
+// on React Native's new architecture a FormData file part (`{uri,...}`) throws
+// "Unsupported FormDataPart implementation". uploadAsync streams the file
+// natively (OkHttp/NSURLSession), which also carries the session cookies from
+// the native jar; the csrf cookie is echoed as a header. `meetingName` and
+// `participants` ride along as multipart text fields.
 export async function uploadLocalMeeting(opts: {
   fileUri: string;
   meetingName: string;
   participants: string[];
 }): Promise<{ sessionId: string; status: string }> {
   const csrf = await nativeCookieStore.getCookie("csrf");
-  const form = new FormData();
-  // React Native's FormData accepts a {uri,name,type} file part.
-  form.append("audio", { uri: opts.fileUri, name: "recording.m4a", type: "audio/m4a" } as unknown as Blob);
-  form.append("meetingName", opts.meetingName);
-  form.append("participants", JSON.stringify(opts.participants));
 
-  const res = await fetch(`${API_BASE_URL}/api/meetings/local`, {
-    method: "POST",
-    credentials: "include",
-    headers: csrf ? { "X-CSRF-Token": csrf } : undefined,
-    body: form
+  const res = await uploadAsync(`${API_BASE_URL}/api/meetings/local`, opts.fileUri, {
+    httpMethod: "POST",
+    uploadType: FileSystemUploadType.MULTIPART,
+    fieldName: "audio",
+    mimeType: "audio/m4a",
+    parameters: {
+      meetingName: opts.meetingName,
+      participants: JSON.stringify(opts.participants)
+    },
+    headers: csrf ? { "X-CSRF-Token": csrf } : {}
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Upload failed (${res.status})${body ? ` — ${body}` : ""}`);
+
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`Upload failed (${res.status})${res.body ? ` — ${res.body}` : ""}`);
   }
-  return res.json() as Promise<{ sessionId: string; status: string }>;
+  return JSON.parse(res.body) as { sessionId: string; status: string };
 }
