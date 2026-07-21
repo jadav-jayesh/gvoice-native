@@ -1,17 +1,20 @@
 {
   "expo": {
-    "name": "gvoice-native",
+    "name": "gVoice",
     "slug": "gvoice-native",
+    "scheme": "gvoice",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "co.groovyweb.gvoice"
     },
     "android": {
+      "package": "co.groovyweb.gvoice",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#06B6D4",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +23,13 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-video"
+    ],
+    "extra": {
+      "apiBaseUrl": "https://20.198.80.63.nip.io"
     }
   }
 }
