@@ -15,7 +15,13 @@ export async function uploadLocalMeeting(opts: {
   meetingName: string;
   participants: string[];
 }): Promise<{ sessionId: string; status: string }> {
+  // uploadAsync doesn't share the app's cookie jar, so attach the session
+  // cookies (token/refresh/csrf) + the csrf header explicitly.
+  const cookieHeader = await nativeCookieStore.getCookieHeader();
   const csrf = await nativeCookieStore.getCookie("csrf");
+  const headers: Record<string, string> = {};
+  if (cookieHeader) headers.Cookie = cookieHeader;
+  if (csrf) headers["X-CSRF-Token"] = csrf;
 
   const res = await uploadAsync(`${API_BASE_URL}/api/meetings/local`, opts.fileUri, {
     httpMethod: "POST",
@@ -26,7 +32,7 @@ export async function uploadLocalMeeting(opts: {
       meetingName: opts.meetingName,
       participants: JSON.stringify(opts.participants)
     },
-    headers: csrf ? { "X-CSRF-Token": csrf } : {}
+    headers
   });
 
   if (res.status < 200 || res.status >= 300) {

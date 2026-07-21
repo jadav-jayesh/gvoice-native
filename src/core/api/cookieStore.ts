@@ -9,6 +9,12 @@ import { API_BASE_URL } from "../config";
 // it back as a header on writes (double-submit CSRF).
 export interface CookieStore {
   getCookie(name: string): Promise<string | null>;
+  // Full "name=value; name2=value2" header of every cookie for the API origin.
+  // Needed for expo-file-system's uploader, which uses its own networking stack
+  // and does NOT share the app's cookie jar, so the session cookies must be
+  // attached explicitly. On Android CookieManager.get returns httpOnly cookies
+  // (token/refresh) too, so the upload can authenticate.
+  getCookieHeader(): Promise<string>;
   clearAll(): Promise<void>;
 }
 
@@ -16,6 +22,12 @@ export const nativeCookieStore: CookieStore = {
   async getCookie(name) {
     const cookies = await CookieManager.get(API_BASE_URL);
     return cookies[name]?.value ?? null;
+  },
+  async getCookieHeader() {
+    const cookies = await CookieManager.get(API_BASE_URL);
+    return Object.entries(cookies)
+      .map(([name, c]) => `${name}=${c.value}`)
+      .join("; ");
   },
   async clearAll() {
     await CookieManager.clearAll();
