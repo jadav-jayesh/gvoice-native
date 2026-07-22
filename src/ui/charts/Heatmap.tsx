@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 import { useTheme } from "../../core/theme/ThemeProvider";
@@ -34,8 +34,14 @@ export function Heatmap({
   const data = values.length >= needed ? values.slice(values.length - needed) : [...Array(needed - values.length).fill(0), ...values];
   const max = Math.max(1, ...data);
 
-  const width = weeks * (cellSize + gap) - gap;
-  const height = 7 * (cellSize + gap) - gap;
+  // Fit the grid to the card: `cellSize` is a maximum — on narrow screens the
+  // cells shrink so all `weeks` columns stay inside the measured width instead
+  // of overflowing the card edge.
+  const [containerWidth, setContainerWidth] = useState(0);
+  const cell = containerWidth > 0 ? Math.min(cellSize, (containerWidth - (weeks - 1) * gap) / weeks) : cellSize;
+
+  const width = weeks * (cell + gap) - gap;
+  const height = 7 * (cell + gap) - gap;
 
   const levelColor = (level: number): string => {
     switch (level) {
@@ -61,7 +67,7 @@ export function Heatmap({
     d.setDate(d.getDate() - ((weeks - 1 - w) * 7 + 6));
     const m = d.getMonth();
     if (m !== lastMonth) {
-      monthLabels.push({ x: w * (cellSize + gap), label: MONTHS[m] });
+      monthLabels.push({ x: w * (cell + gap), label: MONTHS[m] });
       lastMonth = m;
     }
   }
@@ -74,10 +80,10 @@ export function Heatmap({
       cells.push(
         <Rect
           key={i}
-          x={w * (cellSize + gap)}
-          y={d * (cellSize + gap)}
-          width={cellSize}
-          height={cellSize}
+          x={w * (cell + gap)}
+          y={d * (cell + gap)}
+          width={cell}
+          height={cell}
           rx={2.5}
           ry={2.5}
           fill={levelColor(quartile(v, max))}
@@ -87,7 +93,7 @@ export function Heatmap({
   }
 
   return (
-    <View>
+    <View onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
       <Svg width={width} height={height + 14}>
         {monthLabels.map((m, i) => (
           <SvgText key={i} x={m.x} y={9} fontSize={9} fill={theme.color.inkFaint}>
