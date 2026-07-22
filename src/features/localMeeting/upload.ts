@@ -1,4 +1,5 @@
 import { FileSystemUploadType, uploadAsync } from "expo-file-system/legacy";
+import { performRefresh } from "../../core/api/client";
 import { nativeCookieStore } from "../../core/api/cookieStore";
 import { API_BASE_URL } from "../../core/config";
 
@@ -16,24 +17,33 @@ export async function uploadLocalMeeting(opts: {
   participants: string[];
 }): Promise<{ sessionId: string; status: string }> {
   // uploadAsync doesn't share the app's cookie jar, so attach the session
-  // cookies (token/refresh/csrf) + the csrf header explicitly.
-  const cookieHeader = await nativeCookieStore.getCookieHeader();
-  const csrf = await nativeCookieStore.getCookie("csrf");
-  const headers: Record<string, string> = {};
-  if (cookieHeader) headers.Cookie = cookieHeader;
-  if (csrf) headers["X-CSRF-Token"] = csrf;
+  // cookies (token/refresh/csrf) + the csrf header explicitly. It also
+  // bypasses client.ts's 401→refresh→retry, so replicate it here: on a 401,
+  // refresh the session once and retry with the fresh cookies.
+  const doUpload = async () => {
+    const cookieHeader = await nativeCookieStore.getCookieHeader();
+    const csrf = await nativeCookieStore.getCookie("csrf");
+    const headers: Record<string, string> = {};
+    if (cookieHeader) headers.Cookie = cookieHeader;
+    if (csrf) headers["X-CSRF-Token"] = csrf;
 
-  const res = await uploadAsync(`${API_BASE_URL}/api/meetings/local`, opts.fileUri, {
-    httpMethod: "POST",
-    uploadType: FileSystemUploadType.MULTIPART,
-    fieldName: "audio",
-    mimeType: "audio/m4a",
-    parameters: {
-      meetingName: opts.meetingName,
-      participants: JSON.stringify(opts.participants)
-    },
-    headers
-  });
+    return uploadAsync(`${API_BASE_URL}/api/meetings/local`, opts.fileUri, {
+      httpMethod: "POST",
+      uploadType: FileSystemUploadType.MULTIPART,
+      fieldName: "audio",
+      mimeType: "audio/m4a",
+      parameters: {
+        meetingName: opts.meetingName,
+        participants: JSON.stringify(opts.participants)
+      },
+      headers
+    });
+  };
+
+  let res = await doUpload();
+  if (res.status === 401 && (await performRefresh())) {
+    res = await doUpload();
+  }
 
   if (res.status < 200 || res.status >= 300) {
     throw new Error(`Upload failed (${res.status})${res.body ? ` — ${res.body}` : ""}`);

@@ -37,7 +37,7 @@ const CSRF_COOKIE = "csrf";
 // Single-flight refresh — concurrent 401s all await the same attempt.
 let refreshInFlight: Promise<boolean> | null = null;
 
-async function performRefresh(): Promise<boolean> {
+export async function performRefresh(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
     try {
