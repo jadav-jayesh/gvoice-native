@@ -2,9 +2,10 @@ import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from "@react
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { useAuth } from "../core/auth/AuthProvider";
 import { useTheme } from "../core/theme/ThemeProvider";
+import { BrandSplash } from "../ui/BrandSplash";
 import { Icon, type IconName } from "../ui/Icon";
 import { LoginScreen } from "../screens/LoginScreen";
 import { SignupScreen } from "../screens/SignupScreen";
@@ -62,12 +63,7 @@ function AppTabs() {
 }
 
 function Splash() {
-  const { theme } = useTheme();
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.color.bg }}>
-      <ActivityIndicator color={theme.color.accent} size="large" />
-    </View>
-  );
+  return <BrandSplash />;
 }
 
 export function RootNavigator() {
