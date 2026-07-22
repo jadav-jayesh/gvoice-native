@@ -7,6 +7,7 @@ import { Avatar } from "../../ui/Avatar";
 import { Card } from "../../ui/Card";
 import { ProgressBar } from "../../ui/ProgressBar";
 import { SectionTitle } from "../../ui/Section";
+import { RichText } from "../../ui/RichText";
 import { Text } from "../../ui/Text";
 import { resolveMom } from "./mom";
 
@@ -33,9 +34,9 @@ export function MomReportView({ meeting }: { meeting: Meeting }) {
       {/* 1. Executive summary */}
       <Card>
         <SectionTitle title="Executive summary" icon="Sparkles" />
-        <Text variant="body" tone="soft" style={styles.body}>
+        <RichText variant="body" tone="soft" style={styles.body}>
           {r.executiveSummary}
-        </Text>
+        </RichText>
       </Card>
 
       {/* 2. Sentiment */}
@@ -65,9 +66,9 @@ export function MomReportView({ meeting }: { meeting: Meeting }) {
               <View key={i} style={{ flexDirection: "row", gap: 10 }}>
                 <Avatar name={q.speaker || "?"} size={26} />
                 <View style={{ flex: 1 }}>
-                  <Text variant="body" tone="soft" style={{ fontStyle: "italic" }}>
-                    “{q.text}”
-                  </Text>
+                  <RichText variant="body" tone="soft" style={{ fontStyle: "italic" }}>
+                    {`“${q.text}”`}
+                  </RichText>
                   <Text variant="caption" tone="faint">
                     {q.speaker}
                     {q.company ? ` · ${q.company}` : ""}
@@ -119,9 +120,9 @@ export function MomReportView({ meeting }: { meeting: Meeting }) {
                 </View>
                 <Text variant="heading">{s.topic}</Text>
                 {s.body ? (
-                  <Text variant="body" tone="soft" style={styles.body}>
+                  <RichText variant="body" tone="soft" style={styles.body}>
                     {s.body}
-                  </Text>
+                  </RichText>
                 ) : null}
               </View>
             ))}
@@ -210,9 +211,9 @@ export function MomReportView({ meeting }: { meeting: Meeting }) {
                   </Text>
                 </View>
                 {risk.detail ? (
-                  <Text variant="body" tone="soft">
+                  <RichText variant="body" tone="soft">
                     {risk.detail}
-                  </Text>
+                  </RichText>
                 ) : null}
                 <Text variant="caption" tone="faint">
                   Owner: {risk.owner ?? "—"}

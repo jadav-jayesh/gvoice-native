@@ -1,13 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useMemo, useState } from "react";
-import { Linking, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
-import { API_BASE_URL } from "../core/config";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { deleteMeeting, getMeeting } from "../core/api/endpoints";
 import type { Meeting } from "../core/api/types";
 import { sentimentHex } from "../core/lib/colors";
 import {
-  buildFathomTranscript,
   formatDuration,
   formatRelative,
   isMeetingInProgress,
@@ -21,7 +19,8 @@ import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { Icon } from "../ui/Icon";
+import { Icon, type IconName } from "../ui/Icon";
+import { RichText } from "../ui/RichText";
 import { ProgressBar } from "../ui/ProgressBar";
 import { Screen } from "../ui/Screen";
 import { SectionTitle } from "../ui/Section";
@@ -29,6 +28,7 @@ import { ConfirmModal } from "../ui/ConfirmModal";
 import { ErrorRetry } from "../ui/ErrorRetry";
 import { Skeleton } from "../ui/Skeleton";
 import { Text } from "../ui/Text";
+import { MomModal } from "../features/meetings/MomModal";
 import { MomReportView } from "../features/meetings/MomReportView";
 import { deriveMoments } from "../features/meetings/moments";
 import { RecordingPlayer, RecordingUnavailable } from "../features/meetings/RecordingPlayer";
@@ -54,8 +54,8 @@ function IconButton({ name, onPress, color }: { name: any; onPress: () => void; 
     <Pressable
       onPress={onPress}
       style={{
-        width: 38,
-        height: 38,
+        width: 44,
+        height: 44,
         borderRadius: theme.radii.md,
         borderWidth: 1,
         borderColor: theme.color.line,
@@ -65,6 +65,32 @@ function IconButton({ name, onPress, color }: { name: any; onPress: () => void; 
       }}
     >
       <Icon name={name} size={18} color={color ?? theme.color.inkMute} />
+    </Pressable>
+  );
+}
+
+// Labeled pill action (icon + text), matches the web meeting-detail action bar.
+function ActionPill({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const { theme } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        height: 44,
+        paddingHorizontal: 16,
+        borderRadius: theme.radii.md,
+        borderWidth: 1,
+        borderColor: theme.color.line,
+        backgroundColor: pressed ? theme.color.surfaceHi : theme.color.surface
+      })}
+    >
+      <Icon name={icon} size={17} color={theme.color.accent} />
+      <Text variant="label" style={{ color: theme.color.ink }}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -89,6 +115,7 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
   const [done, setDone] = useState<Record<number, boolean>>({});
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [momOpen, setMomOpen] = useState(false);
 
   const segments = meeting?.diarizedTranscript ?? [];
   const transcriptDuration = useMemo(
@@ -193,16 +220,13 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <View style={{ flex: 1 }}>
-          <Button title="Share" variant="secondary" onPress={() => setShareOpen(true)} />
-        </View>
-        {segments.length > 0 ? (
-          <IconButton name="Download" onPress={() => Share.share({ message: buildFathomTranscript(meeting, API_BASE_URL) })} />
-        ) : null}
+        <ActionPill icon="Sparkles" label="View MoM" onPress={() => setMomOpen(true)} />
+        <View style={{ flex: 1 }} />
         {meeting.recordingUrl ? (
           <IconButton name="Video" onPress={() => Linking.openURL(meeting.recordingUrl as string)} />
         ) : null}
-        <IconButton name="Close" color={theme.color.danger} onPress={() => setConfirmDeleteOpen(true)} />
+        <IconButton name="Link" onPress={() => setShareOpen(true)} />
+        <IconButton name="Trash" color={theme.color.danger} onPress={() => setConfirmDeleteOpen(true)} />
       </View>
 
       {/* Processing */}
@@ -314,6 +338,8 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         initialEnabled={meeting.shareEnabled}
         initialToken={meeting.shareToken}
       />
+
+      <MomModal visible={momOpen} onClose={() => setMomOpen(false)} meeting={meeting} />
       {deleting ? null : null}
       <ConfirmModal
         visible={confirmDeleteOpen}
@@ -363,9 +389,9 @@ function SummaryTab({ meeting }: { meeting: Meeting }) {
       {purpose ? (
         <>
           <SectionTitle title="Meeting purpose" icon="Sparkles" />
-          <Text variant="body" tone="soft" style={{ lineHeight: 22, marginBottom: takeaways.length ? 16 : 0 }}>
+          <RichText variant="body" tone="soft" style={{ lineHeight: 22, marginBottom: takeaways.length ? 16 : 0 }}>
             {purpose}
-          </Text>
+          </RichText>
         </>
       ) : null}
       {takeaways.length > 0 ? (
@@ -375,10 +401,9 @@ function SummaryTab({ meeting }: { meeting: Meeting }) {
             {takeaways.map((k, i) => (
               <View key={i} style={{ flexDirection: "row", gap: 8 }}>
                 <Text tone="accent">•</Text>
-                <Text variant="body" style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "700" }}>{k.title}</Text>
-                  {k.detail ? ` — ${k.detail}` : ""}
-                </Text>
+                <RichText variant="body" style={{ flex: 1 }}>
+                  {`<strong>${k.title}</strong>${k.detail ? ` — ${k.detail}` : ""}`}
+                </RichText>
               </View>
             ))}
           </View>
