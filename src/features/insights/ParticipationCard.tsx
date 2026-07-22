@@ -5,6 +5,7 @@ import { getParticipation, type InsightRange } from "../../core/api/endpoints";
 import { Avatar } from "../../ui/Avatar";
 import { Card } from "../../ui/Card";
 import { ProgressBar } from "../../ui/ProgressBar";
+import { ErrorRetry } from "../../ui/ErrorRetry";
 import { Skeleton } from "../../ui/Skeleton";
 import { Text } from "../../ui/Text";
 
@@ -19,7 +20,7 @@ function fmt(seconds: number): string {
 }
 
 export function ParticipationCard({ range }: { range: InsightRange }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["insights", "participation", range],
     queryFn: () => getParticipation(range)
   });
@@ -36,6 +37,8 @@ export function ParticipationCard({ range }: { range: InsightRange }) {
             <Skeleton key={i} height={28} />
           ))}
         </View>
+      ) : isError ? (
+        <ErrorRetry compact title="Couldn't load talk share." onRetry={refetch} retrying={isRefetching} />
       ) : !data || data.speakers.length === 0 ? (
         <Text tone="mute" style={{ fontStyle: "italic" }}>
           No speaker timing data yet.

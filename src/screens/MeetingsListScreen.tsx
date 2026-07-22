@@ -11,6 +11,7 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
+import { ErrorRetry } from "../ui/ErrorRetry";
 import { Icon } from "../ui/Icon";
 import { Screen } from "../ui/Screen";
 import { Segmented } from "../ui/Segmented";
@@ -137,9 +138,7 @@ export function MeetingsListScreen({ navigation }: Props) {
   return (
     <Screen padded={false}>
       {isError ? (
-        <View style={{ padding: 40, alignItems: "center" }}>
-          <Text tone="danger">Couldn't load meetings.</Text>
-        </View>
+        <ErrorRetry title="Couldn't load meetings." description="Check your connection and try again." onRetry={refetch} retrying={isRefetching} />
       ) : (
         <FlashList
           data={items}

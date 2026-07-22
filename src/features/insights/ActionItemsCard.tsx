@@ -6,6 +6,7 @@ import { useTheme } from "../../core/theme/ThemeProvider";
 import { Card } from "../../ui/Card";
 import { CompletionRing } from "../../ui/charts/CompletionRing";
 import { Icon } from "../../ui/Icon";
+import { ErrorRetry } from "../../ui/ErrorRetry";
 import { Skeleton } from "../../ui/Skeleton";
 import { Text } from "../../ui/Text";
 
@@ -26,7 +27,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "in
 
 export function ActionItemsCard({ range }: { range: InsightRange }) {
   const { theme } = useTheme();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["insights", "action-items", range],
     queryFn: () => getActionItemInsights(range)
   });
@@ -49,6 +50,8 @@ export function ActionItemsCard({ range }: { range: InsightRange }) {
 
       {isLoading ? (
         <Skeleton height={120} />
+      ) : isError ? (
+        <ErrorRetry compact title="Couldn't load action items." onRetry={refetch} retrying={isRefetching} />
       ) : !data || data.total === 0 ? (
         <Text tone="mute" style={{ paddingVertical: 16, textAlign: "center" }}>
           No action items captured yet.

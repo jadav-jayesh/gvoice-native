@@ -16,6 +16,7 @@ import { Heatmap } from "../ui/charts/Heatmap";
 import { Icon } from "../ui/Icon";
 import { Screen } from "../ui/Screen";
 import { SectionTitle } from "../ui/Section";
+import { ErrorRetry } from "../ui/ErrorRetry";
 import { Skeleton } from "../ui/Skeleton";
 import { Text } from "../ui/Text";
 import { ActionItemsCard } from "../features/insights/ActionItemsCard";
@@ -86,7 +87,7 @@ export function DashboardScreen() {
   const nav = useNavigation<NavigationProp<AppTabsParamList>>();
   const user = useAuthStore((s) => s.user);
   const [range, setRange] = useState<InsightRange>("30d");
-  const { data, isLoading } = useQuery({ queryKey: ["meetings", "dashboard-src"], queryFn: () => listMeetings({ pageSize: 100 }) });
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: ["meetings", "dashboard-src"], queryFn: () => listMeetings({ pageSize: 100 }) });
   const items = data?.items ?? [];
   const stats = useMemo(() => deriveStats(items, data?.total ?? items.length), [items, data?.total]);
   const negative = useMemo(() => items.filter(isNegativeMeeting).sort(byMostNegative), [items]);
@@ -109,6 +110,8 @@ export function DashboardScreen() {
           <Skeleton height={90} />
           <Skeleton height={200} />
         </View>
+      ) : isError ? (
+        <ErrorRetry title="Couldn't load your workspace." description="Check your connection and try again." onRetry={refetch} retrying={isRefetching} />
       ) : (
         <View style={{ gap: 16 }}>
           {/* Live now */}

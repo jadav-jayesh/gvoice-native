@@ -6,6 +6,7 @@ import { Pressable, View } from "react-native";
 import { getTopics, type InsightRange } from "../../core/api/endpoints";
 import { useTheme } from "../../core/theme/ThemeProvider";
 import { Card } from "../../ui/Card";
+import { ErrorRetry } from "../../ui/ErrorRetry";
 import { Skeleton } from "../../ui/Skeleton";
 import { Text } from "../../ui/Text";
 import type { AppTabsParamList } from "../../navigation/types";
@@ -15,7 +16,7 @@ import type { AppTabsParamList } from "../../navigation/types";
 export function TopicsCard({ range }: { range: InsightRange }) {
   const { theme } = useTheme();
   const nav = useNavigation<NavigationProp<AppTabsParamList>>();
-  const { data, isLoading } = useQuery({ queryKey: ["insights", "topics", range], queryFn: () => getTopics(range) });
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: ["insights", "topics", range], queryFn: () => getTopics(range) });
   const max = data?.topics[0]?.count ?? 1;
 
   return (
@@ -30,6 +31,8 @@ export function TopicsCard({ range }: { range: InsightRange }) {
             <Skeleton key={i} width={90} height={28} radius={999} />
           ))}
         </View>
+      ) : isError ? (
+        <ErrorRetry compact title="Couldn't load themes." onRetry={refetch} retrying={isRefetching} />
       ) : !data || data.topics.length === 0 ? (
         <Text tone="mute" style={{ fontStyle: "italic" }}>
           No themes yet — captured once meetings have chapters.

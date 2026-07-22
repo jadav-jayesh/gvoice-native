@@ -11,6 +11,7 @@ import { Sparkline } from "../ui/charts/Sparkline";
 import { EmptyState } from "../ui/EmptyState";
 import { Screen } from "../ui/Screen";
 import { SectionTitle } from "../ui/Section";
+import { ErrorRetry } from "../ui/ErrorRetry";
 import { Skeleton } from "../ui/Skeleton";
 import { Text } from "../ui/Text";
 import { ActionItemsCard } from "../features/insights/ActionItemsCard";
@@ -103,7 +104,7 @@ function SummaryStat({ label, value, accent, caption }: { label: string; value: 
 export function InsightsScreen() {
   const { theme } = useTheme();
   const [range, setRange] = useState<InsightRange>("30d");
-  const { data: meetings, isLoading } = useQuery({
+  const { data: meetings, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["meetings", "insights-src"],
     queryFn: () => listMeetings({ pageSize: 100 })
   });
@@ -123,6 +124,8 @@ export function InsightsScreen() {
           <Skeleton height={120} />
           <Skeleton height={220} />
         </View>
+      ) : isError ? (
+        <ErrorRetry title="Couldn't load insights." description="Check your connection and try again." onRetry={refetch} retrying={isRefetching} />
       ) : items.length === 0 ? (
         <Card>
           <EmptyState icon="Sparkles" title="Not enough data yet" description="Insights appear once you have a few recorded meetings." />
