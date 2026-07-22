@@ -7,6 +7,7 @@ import { useTheme, type ThemePreference } from "../core/theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { ConfirmModal } from "../ui/ConfirmModal";
 import { Screen } from "../ui/Screen";
 import { Text } from "../ui/Text";
 import { ChangePasswordCard } from "../features/auth/ChangePasswordCard";
@@ -23,6 +24,7 @@ export function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   useEffect(() => {
     setFirst(user?.firstName ?? "");
@@ -116,7 +118,26 @@ export function ProfileScreen() {
       <ChangePasswordCard />
       <DangerZoneCard />
 
-      <Button title="Sign out" variant="danger" onPress={async () => { setBusy(true); await signOut().finally(() => setBusy(false)); }} loading={busy} style={{ marginBottom: 12 }} />
+      <Button title="Sign out" variant="danger" onPress={() => setConfirmSignOut(true)} loading={busy} style={{ marginBottom: 12 }} />
+
+      <ConfirmModal
+        visible={confirmSignOut}
+        title="Sign out?"
+        message="You'll need to sign in again to see your meetings."
+        confirmLabel="Sign out"
+        destructive
+        loading={busy}
+        onConfirm={async () => {
+          setBusy(true);
+          try {
+            await signOut();
+          } finally {
+            setBusy(false);
+            setConfirmSignOut(false);
+          }
+        }}
+        onCancel={() => setConfirmSignOut(false)}
+      />
     </Screen>
   );
 }

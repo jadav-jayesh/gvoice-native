@@ -25,6 +25,8 @@ import { Icon } from "../ui/Icon";
 import { ProgressBar } from "../ui/ProgressBar";
 import { Screen } from "../ui/Screen";
 import { SectionTitle } from "../ui/Section";
+import { ConfirmModal } from "../ui/ConfirmModal";
+import { ErrorRetry } from "../ui/ErrorRetry";
 import { Skeleton } from "../ui/Skeleton";
 import { Text } from "../ui/Text";
 import { MomReportView } from "../features/meetings/MomReportView";
@@ -72,7 +74,7 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
   const { theme } = useTheme();
   const qc = useQueryClient();
 
-  const { data: meeting, isLoading, isError } = useQuery({
+  const { data: meeting, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["meeting", sessionId],
     queryFn: () => getMeeting(sessionId),
     refetchInterval: (q) => (q.state.data && isMeetingInProgress(q.state.data.status) ? 4000 : false)
@@ -86,6 +88,7 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
   const [shareOpen, setShareOpen] = useState(false);
   const [done, setDone] = useState<Record<number, boolean>>({});
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const segments = meeting?.diarizedTranscript ?? [];
   const transcriptDuration = useMemo(
@@ -141,12 +144,7 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
   if (isError || !meeting) {
     return (
       <Screen>
-        <Card>
-          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-            <Icon name="AlertCircle" size={18} color={theme.color.danger} />
-            <Text tone="danger">Failed to load this meeting.</Text>
-          </View>
-        </Card>
+        <ErrorRetry title="Failed to load this meeting." description="It may have been deleted, or the connection dropped." onRetry={refetch} retrying={isRefetching} />
       </Screen>
     );
   }
@@ -204,7 +202,7 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         {meeting.recordingUrl ? (
           <IconButton name="Video" onPress={() => Linking.openURL(meeting.recordingUrl as string)} />
         ) : null}
-        <IconButton name="Close" color={theme.color.danger} onPress={confirmDelete} />
+        <IconButton name="Close" color={theme.color.danger} onPress={() => setConfirmDeleteOpen(true)} />
       </View>
 
       {/* Processing */}
@@ -317,6 +315,16 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         initialToken={meeting.shareToken}
       />
       {deleting ? null : null}
+      <ConfirmModal
+        visible={confirmDeleteOpen}
+        title="Delete this meeting?"
+        message="The recording, transcript and reports are permanently removed. This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </Screen>
   );
 }
