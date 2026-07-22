@@ -14,6 +14,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { Icon } from "../ui/Icon";
 import { Screen } from "../ui/Screen";
 import { Segmented } from "../ui/Segmented";
+import { Skeleton } from "../ui/Skeleton";
 import { Text } from "../ui/Text";
 import { JoinMeetingSheet } from "../features/meetings/JoinMeetingSheet";
 import type { MeetingsStackParamList } from "../navigation/types";
@@ -123,7 +124,8 @@ export function MeetingsListScreen({ navigation }: Props) {
               { value: "", label: "All" },
               { value: "google_meet", label: "Meet" },
               { value: "microsoft_teams", label: "Teams" },
-              { value: "zoom", label: "Zoom" }
+              { value: "zoom", label: "Zoom" },
+              { value: "in_person", label: "In-person" }
             ]}
           />
         </View>
@@ -150,9 +152,19 @@ export function MeetingsListScreen({ navigation }: Props) {
           )}
           ListEmptyComponent={
             isLoading ? (
-              <Text tone="mute" style={{ textAlign: "center", padding: 24 }}>
-                Loading meetings…
-              </Text>
+              <View style={{ gap: 12 }}>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <Card key={i}>
+                    <Skeleton width="70%" height={20} />
+                    <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                      <Skeleton width={84} height={24} radius={999} />
+                      <Skeleton width={96} height={24} radius={999} />
+                    </View>
+                    <Skeleton width="95%" height={13} style={{ marginTop: 12 }} />
+                    <Skeleton width="60%" height={13} style={{ marginTop: 6 }} />
+                  </Card>
+                ))}
+              </View>
             ) : (
               <EmptyState icon="Meetings" title="No meetings match" description="Try a different search or filter." />
             )

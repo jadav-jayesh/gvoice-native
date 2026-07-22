@@ -25,6 +25,7 @@ import { Icon } from "../ui/Icon";
 import { ProgressBar } from "../ui/ProgressBar";
 import { Screen } from "../ui/Screen";
 import { SectionTitle } from "../ui/Section";
+import { Skeleton } from "../ui/Skeleton";
 import { Text } from "../ui/Text";
 import { MomReportView } from "../features/meetings/MomReportView";
 import { deriveMoments } from "../features/meetings/moments";
@@ -113,8 +114,27 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
 
   if (isLoading) {
     return (
-      <Screen>
-        <Text tone="mute">Loading…</Text>
+      <Screen scroll>
+        {/* Mirrors the loaded layout: badges → title → meta → actions → player → tabs → content */}
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Skeleton width={92} height={26} radius={999} />
+          <Skeleton width={104} height={26} radius={999} />
+        </View>
+        <Skeleton width="85%" height={30} style={{ marginTop: 14 }} />
+        <Skeleton width="45%" height={14} style={{ marginTop: 10 }} />
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+          <Skeleton height={48} style={{ flex: 1 }} />
+          <Skeleton width={56} height={48} />
+          <Skeleton width={56} height={48} />
+        </View>
+        <Skeleton height={220} style={{ marginTop: 16 }} />
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} width={92} height={34} radius={999} />
+          ))}
+        </View>
+        <Skeleton height={140} style={{ marginTop: 16 }} />
+        <Skeleton height={200} style={{ marginTop: 12 }} />
       </Screen>
     );
   }
