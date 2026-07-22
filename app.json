@@ -32,7 +32,8 @@
         {
           "microphonePermission": "gVoice records your in-person meetings using the microphone."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "apiBaseUrl": "https://20.198.80.63.nip.io"
