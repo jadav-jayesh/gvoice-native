@@ -36,7 +36,7 @@
       "expo-sharing"
     ],
     "extra": {
-      "apiBaseUrl": "https://20.198.80.63.nip.io"
+      "apiBaseUrl": "https://gvoice.groovyweb.ai"
     }
   }
 }

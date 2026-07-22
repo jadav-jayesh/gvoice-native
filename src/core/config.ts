@@ -9,4 +9,4 @@ import Constants from "expo-constants";
 // cookie on a real device.
 const extra = (Constants.expoConfig?.extra ?? {}) as { apiBaseUrl?: string };
 
-export const API_BASE_URL = extra.apiBaseUrl ?? "https://20.198.80.63.nip.io";
+export const API_BASE_URL = extra.apiBaseUrl ?? "https://gvoice.groovyweb.ai";
