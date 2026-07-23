@@ -101,7 +101,20 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new UnauthorizedError();
   }
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
+    let body = await response.text().catch(() => "");
+    // Stale csrf cookie (e.g. a session restored by refresh while the csrf
+    // cookie expired) — a refresh re-issues the csrf cookie, so retry once.
+    if (response.status === 403 && body.includes("csrf_invalid")) {
+      const refreshed = await performRefresh();
+      if (refreshed) {
+        response = await rawFetch(path, init, method);
+        if (response.ok) {
+          if (response.status === 204) return undefined as T;
+          return response.json() as Promise<T>;
+        }
+        body = await response.text().catch(() => "");
+      }
+    }
     throw new Error(`${response.status} ${response.statusText}${body ? ` — ${body}` : ""}`);
   }
   if (response.status === 204) return undefined as T;

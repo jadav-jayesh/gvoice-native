@@ -95,7 +95,10 @@ export function DashboardScreen() {
   const chartW = Dimensions.get("window").width - 48 - 40;
 
   function openMeeting(sessionId: string, title?: string) {
-    nav.navigate("Meetings", { screen: "MeetingDetail", params: { sessionId, title } } as never);
+    // initial: false keeps MeetingsList beneath the detail screen, so the
+    // header back button and back gestures (swipe on iOS, system back on
+    // Android) return to the list instead of exiting the stack.
+    nav.navigate("Meetings", { screen: "MeetingDetail", params: { sessionId, title }, initial: false } as never);
   }
 
   return (
@@ -195,7 +198,7 @@ export function DashboardScreen() {
 
           {/* Recent */}
           <View style={{ marginBottom: 8 }}>
-            <SectionTitle title="Recent meetings" icon="Meetings" right={<Text variant="caption" tone="accent" onPress={() => nav.navigate("Meetings")}>View all</Text>} />
+            <SectionTitle title="Recent meetings" icon="Meetings" right={<Text variant="caption" tone="accent" onPress={() => nav.navigate("Meetings", { screen: "MeetingsList" } as never)}>View all</Text>} />
             <Card>
               {items.length === 0 ? (
                 <Text tone="mute" style={{ textAlign: "center", paddingVertical: 16 }}>

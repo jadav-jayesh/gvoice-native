@@ -42,7 +42,7 @@ export function TopicsCard({ range }: { range: InsightRange }) {
           {data.topics.map((t, i) => (
             <Pressable
               key={i}
-              onPress={() => nav.navigate("Meetings")}
+              onPress={() => nav.navigate("Meetings", { screen: "MeetingsList" } as never)}
               style={{
                 flexDirection: "row",
                 alignItems: "center",

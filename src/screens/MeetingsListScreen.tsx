@@ -5,7 +5,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, TextInput, View } from "react-native";
 import { getMeetingStats, listMeetings } from "../core/api/endpoints";
 import type { BotPlatform, MeetingListItem } from "../core/api/types";
-import { formatRelative, isNegativeMeeting, platformLabel, platformTone, statusLabel, statusTone } from "../core/lib/format";
+import { formatRelative, isMeetingInProgress, isNegativeMeeting, platformLabel, platformTone, statusLabel, statusTone } from "../core/lib/format";
+import { Equalizer, PulsingDot } from "../features/meetings/LiveCaptureCard";
 import { useTheme } from "../core/theme/ThemeProvider";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -25,14 +26,37 @@ type Props = NativeStackScreenProps<MeetingsStackParamList, "MeetingsList">;
 const MeetingRow = React.memo(function MeetingRow({ item, onPress }: { item: MeetingListItem; onPress: () => void }) {
   const { theme } = useTheme();
   const critical = isNegativeMeeting(item);
+  const live = isMeetingInProgress(item.status);
   return (
     <Card style={{ marginBottom: 12, borderLeftWidth: critical ? 3 : 1, borderLeftColor: critical ? theme.color.danger : theme.color.line }} onPress={onPress}>
-      <Text variant="heading" numberOfLines={1}>
-        {item.meetingName || "Untitled meeting"}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>
+          {item.meetingName || "Untitled meeting"}
+        </Text>
+        {live ? <Equalizer color={theme.color.accent} barCount={5} height={18} barWidth={3} gap={3} /> : null}
+      </View>
       <View style={styles.metaRow}>
         <Badge label={platformLabel(item.platform)} tone={platformTone(item.platform)} />
-        <Badge label={statusLabel(item.status)} tone={statusTone(item.status)} />
+        {live ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 999,
+              backgroundColor: "rgba(239,68,68,0.12)"
+            }}
+          >
+            <PulsingDot color={theme.color.danger} size={7} />
+            <Text variant="caption" style={{ color: theme.color.danger, fontWeight: "600" }}>
+              {statusLabel(item.status)}
+            </Text>
+          </View>
+        ) : (
+          <Badge label={statusLabel(item.status)} tone={statusTone(item.status)} />
+        )}
         <Text variant="caption" tone="faint">
           {formatRelative(item.startedAt ?? item.createdAt)}
         </Text>

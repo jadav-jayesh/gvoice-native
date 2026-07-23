@@ -1,11 +1,26 @@
 import React, { useState } from "react";
 import { Share, View } from "react-native";
 import { API_BASE_URL } from "../../core/config";
+import { UnauthorizedError } from "../../core/api/client";
 import { createShareLink, revokeShareLink } from "../../core/api/endpoints";
 import { useTheme } from "../../core/theme/ThemeProvider";
 import { Button } from "../../ui/Button";
 import { Sheet } from "../../ui/Sheet";
 import { Text } from "../../ui/Text";
+
+// Turn a transport error into a message the user can act on. The raw status is
+// kept (shortened) so QA reports pinpoint the failing case instead of a
+// generic "try again".
+function shareErrorMessage(e: unknown, action: "create" | "revoke"): string {
+  if (e instanceof UnauthorizedError) return "Your session expired. Please sign in again.";
+  const msg = e instanceof Error ? e.message : "";
+  if (msg.includes("csrf_invalid")) return "Security check failed. Close and reopen the app, then try again.";
+  if (msg.startsWith("403")) return "You don't have permission to share this meeting.";
+  if (msg.startsWith("404")) return "This meeting wasn't found on the server.";
+  if (e instanceof TypeError) return "Network error. Check your connection and try again.";
+  const fallback = action === "create" ? "Couldn't create the link." : "Couldn't revoke the link.";
+  return `${fallback}${msg ? ` (${msg.slice(0, 120)})` : " Try again."}`;
+}
 
 // Ported from web ShareControl: create / share / revoke a public link.
 export function ShareSheet({
@@ -35,8 +50,8 @@ export function ShareSheet({
       const res = await createShareLink(sessionId);
       setEnabled(res.enabled);
       setUrl(res.url ?? urlFrom(res.token));
-    } catch {
-      setError("Couldn't create the link. Try again.");
+    } catch (e) {
+      setError(shareErrorMessage(e, "create"));
     } finally {
       setBusy(false);
     }
@@ -49,8 +64,8 @@ export function ShareSheet({
       await revokeShareLink(sessionId);
       setEnabled(false);
       setUrl(null);
-    } catch {
-      setError("Couldn't revoke the link. Try again.");
+    } catch (e) {
+      setError(shareErrorMessage(e, "revoke"));
     } finally {
       setBusy(false);
     }

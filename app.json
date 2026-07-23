@@ -33,7 +33,8 @@
           "microphonePermission": "gVoice records your in-person meetings using the microphone."
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-splash-screen"
     ],
     "extra": {
       "apiBaseUrl": "https://gvoice.groovyweb.ai"

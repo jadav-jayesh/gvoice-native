@@ -32,6 +32,7 @@ import { MomModal } from "../features/meetings/MomModal";
 import { MomReportView } from "../features/meetings/MomReportView";
 import { deriveMoments } from "../features/meetings/moments";
 import { RecordingPlayer, RecordingUnavailable } from "../features/meetings/RecordingPlayer";
+import { LiveCaptureCard } from "../features/meetings/LiveCaptureCard";
 import { SentimentTimeline } from "../features/meetings/SentimentTimeline";
 import { ShareSheet } from "../features/meetings/ShareSheet";
 import { TranscriptList } from "../features/meetings/TranscriptList";
@@ -229,8 +230,9 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         <IconButton name="Trash" color={theme.color.danger} onPress={() => setConfirmDeleteOpen(true)} />
       </View>
 
-      {/* Processing */}
-      {inProgress ? (
+      {/* Processing note — only when a player is already visible; without a
+          recording the LiveCaptureCard below carries this information. */}
+      {inProgress && meeting.recordingUrl ? (
         <Card style={{ marginTop: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Icon name="Clock" size={16} color={theme.color.warning} />
@@ -244,7 +246,9 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         </Card>
       ) : null}
 
-      {/* Player + timeline */}
+      {/* Player + timeline. While the meeting is still being captured or
+          processed there's no video yet — show the live status card (pulsing
+          pill + equalizer + latest progress log) instead of a dead placeholder. */}
       <View style={{ marginTop: 16, gap: 8 }}>
         {meeting.recordingUrl ? (
           <RecordingPlayer
@@ -254,6 +258,11 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
               setCurrentTime(t);
               if (d) setVideoDuration(d);
             }}
+          />
+        ) : inProgress ? (
+          <LiveCaptureCard
+            statusText={statusLabel(meeting.status)}
+            detail={meeting.meetingLogs?.length ? meeting.meetingLogs[meeting.meetingLogs.length - 1].message : undefined}
           />
         ) : (
           <RecordingUnavailable />
