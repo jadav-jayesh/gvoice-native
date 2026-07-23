@@ -21,13 +21,6 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tabs = createBottomTabNavigator<AppTabsParamList>();
 const MeetingsStack = createNativeStackNavigator<MeetingsStackParamList>();
 
-const TAB_ICON: Record<keyof AppTabsParamList, IconName> = {
-  Dashboard: "Dashboard",
-  Meetings: "Mic",
-  Insights: "Insights",
-  Profile: "User"
-};
-
 function MeetingsNavigator() {
   return (
     <MeetingsStack.Navigator
@@ -48,6 +41,13 @@ function MeetingsNavigator() {
     </MeetingsStack.Navigator>
   );
 }
+
+const TAB_ICON: Record<keyof AppTabsParamList, IconName> = {
+  Dashboard: "Dashboard",
+  Meetings: "Mic",
+  Insights: "Insights",
+  Profile: "User"
+};
 
 function AppTabs() {
   const { theme } = useTheme();

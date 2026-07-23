@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
+import { ScrollView, StyleSheet, View, type RefreshControlProps, type ViewStyle } from "react-native";
 import { useTheme } from "../core/theme/ThemeProvider";
 
 // Themed page wrapper. `scroll` wraps content in a ScrollView; otherwise a plain
@@ -8,12 +8,14 @@ export function Screen({
   children,
   scroll = false,
   padded = true,
-  contentStyle
+  contentStyle,
+  refreshControl
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   padded?: boolean;
   contentStyle?: ViewStyle;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }) {
   const { theme } = useTheme();
   const pad = padded ? { padding: theme.spacing.lg } : null;
@@ -23,6 +25,7 @@ export function Screen({
         style={{ flex: 1 }}
         contentContainerStyle={[pad, contentStyle]}
         keyboardShouldPersistTaps="handled"
+        refreshControl={refreshControl}
       >
         {children}
       </ScrollView>
