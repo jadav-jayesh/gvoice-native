@@ -49,47 +49,52 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "minutes", label: "Minutes" }
 ];
 
-function IconButton({ name, onPress, color }: { name: any; onPress: () => void; color?: string }) {
+function IconButton({ name, onPress, color, label }: { name: IconName; onPress: () => void; color?: string; label: string }) {
   const { theme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={{
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => ({
         width: 44,
         height: 44,
         borderRadius: theme.radii.md,
         borderWidth: 1,
         borderColor: theme.color.line,
-        backgroundColor: theme.color.surface,
+        backgroundColor: pressed ? theme.color.surfaceHi : theme.color.surface,
         alignItems: "center",
-        justifyContent: "center"
-      }}
+        justifyContent: "center",
+        opacity: pressed ? 0.8 : 1
+      })}
     >
       <Icon name={name} size={18} color={color ?? theme.color.inkMute} />
     </Pressable>
   );
 }
 
-// Labeled pill action (icon + text), matches the web meeting-detail action bar.
+// Primary action of the screen — filled accent pill so it clearly outranks the
+// neutral icon buttons beside it.
 function ActionPill({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   const { theme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
         height: 44,
-        paddingHorizontal: 16,
+        paddingHorizontal: 18,
         borderRadius: theme.radii.md,
-        borderWidth: 1,
-        borderColor: theme.color.line,
-        backgroundColor: pressed ? theme.color.surfaceHi : theme.color.surface
+        backgroundColor: theme.color.accent,
+        opacity: pressed ? 0.85 : 1
       })}
     >
-      <Icon name={icon} size={17} color={theme.color.accent} />
-      <Text variant="label" style={{ color: theme.color.ink }}>
+      <Icon name={icon} size={17} color="#fff" />
+      <Text variant="label" style={{ color: "#fff" }}>
         {label}
       </Text>
     </Pressable>
@@ -187,9 +192,19 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         <Badge label={platformLabel(meeting.platform)} tone={platformTone(meeting.platform)} />
         <Badge label={statusLabel(meeting.status)} tone={statusTone(meeting.status)} />
         {overall ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sentimentHex(overall.label) }} />
-            <Text variant="caption" tone="mute">
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: theme.radii.pill,
+              backgroundColor: sentimentHex(overall.label) + "22"
+            }}
+          >
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: sentimentHex(overall.label) }} />
+            <Text variant="caption" style={{ color: sentimentHex(overall.label), fontWeight: "600" }}>
               {overall.label} · {overall.score.toFixed(2)}
             </Text>
           </View>
@@ -197,25 +212,27 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
       </View>
       <Text variant="title">{meeting.meetingName || "Untitled meeting"}</Text>
       <View style={styles.metaRow}>
-        <Icon name="Calendar" size={13} color={theme.color.inkFaint} />
-        <Text variant="caption" tone="faint">
-          {formatRelative(meeting.endedAt ?? meeting.startedAt ?? meeting.createdAt)}
-        </Text>
+        <View style={styles.metaChip}>
+          <Icon name="Calendar" size={13} color={theme.color.inkMute} />
+          <Text variant="caption" tone="mute">
+            {formatRelative(meeting.endedAt ?? meeting.startedAt ?? meeting.createdAt)}
+          </Text>
+        </View>
         {effectiveDuration > 0 ? (
-          <>
-            <Icon name="Clock" size={13} color={theme.color.inkFaint} />
-            <Text variant="caption" tone="faint">
+          <View style={styles.metaChip}>
+            <Icon name="Clock" size={13} color={theme.color.inkMute} />
+            <Text variant="caption" tone="mute">
               {formatDuration(effectiveDuration)}
             </Text>
-          </>
+          </View>
         ) : null}
         {meeting.participants.length > 0 ? (
-          <>
-            <Icon name="Users" size={13} color={theme.color.inkFaint} />
-            <Text variant="caption" tone="faint">
-              {meeting.participants.length}
+          <View style={styles.metaChip}>
+            <Icon name="Users" size={13} color={theme.color.inkMute} />
+            <Text variant="caption" tone="mute">
+              {meeting.participants.length} attendee{meeting.participants.length === 1 ? "" : "s"}
             </Text>
-          </>
+          </View>
         ) : null}
       </View>
 
@@ -224,10 +241,10 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         <ActionPill icon="Sparkles" label="View MoM" onPress={() => setMomOpen(true)} />
         <View style={{ flex: 1 }} />
         {meeting.recordingUrl ? (
-          <IconButton name="Video" onPress={() => Linking.openURL(meeting.recordingUrl as string)} />
+          <IconButton name="Video" label="Open recording video" onPress={() => Linking.openURL(meeting.recordingUrl as string)} />
         ) : null}
-        <IconButton name="Link" onPress={() => setShareOpen(true)} />
-        <IconButton name="Trash" color={theme.color.danger} onPress={() => setConfirmDeleteOpen(true)} />
+        <IconButton name="Link" label="Share public link" onPress={() => setShareOpen(true)} />
+        <IconButton name="Trash" label="Delete meeting" color={theme.color.danger} onPress={() => setConfirmDeleteOpen(true)} />
       </View>
 
       {/* Processing note — only when a player is already visible; without a
@@ -278,24 +295,54 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      {/* Tabs */}
+      {/* Tabs — counts show each section's volume at a glance */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18 }} contentContainerStyle={{ gap: 8 }}>
         {TABS.map((t) => {
           const active = t.key === tab;
+          const count =
+            t.key === "actions"
+              ? meeting.actionItems.length
+              : t.key === "moments"
+                ? moments.length
+                : t.key === "speakers"
+                  ? speakers.length
+                  : undefined;
           return (
             <Pressable
               key={t.key}
               onPress={() => setTab(t.key)}
-              style={{
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
                 paddingHorizontal: 14,
-                paddingVertical: 8,
+                minHeight: 36,
                 borderRadius: theme.radii.pill,
-                backgroundColor: active ? theme.color.accent : theme.color.surfaceHi
-              }}
+                backgroundColor: active ? theme.color.accent : theme.color.surfaceHi,
+                opacity: pressed ? 0.8 : 1
+              })}
             >
               <Text variant="label" style={{ color: active ? "#fff" : theme.color.inkMute }}>
                 {t.label}
               </Text>
+              {typeof count === "number" && count > 0 ? (
+                <View
+                  style={{
+                    minWidth: 20,
+                    paddingHorizontal: 5,
+                    paddingVertical: 1,
+                    borderRadius: 10,
+                    alignItems: "center",
+                    backgroundColor: active ? "rgba(255,255,255,0.25)" : theme.color.surface
+                  }}
+                >
+                  <Text variant="caption" style={{ color: active ? "#fff" : theme.color.inkMute, fontVariant: ["tabular-nums"] }}>
+                    {count}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -329,10 +376,10 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
       {meeting.participants.length > 0 ? (
         <Card style={{ marginTop: 16, marginBottom: 8 }}>
           <SectionTitle title="Participants" icon="Users" count={meeting.participants.length} />
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: 4 }}>
             {meeting.participants.map((p, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <Avatar name={p.name} size={28} />
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44 }}>
+                <Avatar name={p.name} size={32} />
                 <Text variant="body">{p.name}</Text>
               </View>
             ))}
@@ -364,17 +411,46 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
   );
 }
 
+// Small accent chip showing where a tap will seek to in the recording.
+function PlayTimeChip({ time }: { time: number }) {
+  const { theme } = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        alignSelf: "flex-start",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: theme.radii.pill,
+        backgroundColor: theme.color.accent + "1A"
+      }}
+    >
+      <Icon name="Play" size={10} color={theme.color.accent} />
+      <Text variant="caption" style={{ color: theme.color.accent, fontVariant: ["tabular-nums"] }}>
+        {formatDuration(time)}
+      </Text>
+    </View>
+  );
+}
+
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const { theme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={{
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`Filter transcript: ${label}`}
+      style={({ pressed }) => ({
+        paddingHorizontal: 14,
+        minHeight: 34,
+        justifyContent: "center",
         borderRadius: theme.radii.pill,
-        backgroundColor: active ? theme.color.accent : theme.color.surfaceHi
-      }}
+        backgroundColor: active ? theme.color.accent : theme.color.surfaceHi,
+        opacity: pressed ? 0.8 : 1
+      })}
     >
       <Text variant="caption" style={{ color: active ? "#fff" : theme.color.inkMute }}>
         {label}
@@ -436,22 +512,39 @@ function ActionsTab({ meeting, done, setDone }: { meeting: Meeting; done: Record
     <Card>
       <View style={styles.rowBetween}>
         <Text variant="caption" tone="mute">
-          {meeting.actionItems.length} item{meeting.actionItems.length === 1 ? "" : "s"} · tap to mark complete
+          Tap to mark complete
         </Text>
-        <Text variant="caption" tone="mute">
+        <Text variant="caption" tone="mute" style={{ fontVariant: ["tabular-nums"] }}>
           {completed}/{meeting.actionItems.length} done
         </Text>
       </View>
-      <View style={{ gap: 12, marginTop: 12 }}>
+      <View style={{ marginTop: 8 }}>
+        <ProgressBar value={meeting.actionItems.length ? completed / meeting.actionItems.length : 0} />
+      </View>
+      <View style={{ gap: 4, marginTop: 10 }}>
         {meeting.actionItems.map((a, i) => {
           const isDone = !!done[i];
           return (
-            <Pressable key={i} onPress={() => setDone((d) => ({ ...d, [i]: !d[i] }))} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+            <Pressable
+              key={i}
+              onPress={() => setDone((d) => ({ ...d, [i]: !d[i] }))}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isDone }}
+              accessibilityLabel={a.task}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                gap: 12,
+                alignItems: "flex-start",
+                minHeight: 44,
+                paddingVertical: 8,
+                opacity: pressed ? 0.7 : 1
+              })}
+            >
               <View
                 style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 6,
+                  width: 22,
+                  height: 22,
+                  borderRadius: 7,
                   borderWidth: 1.5,
                   borderColor: isDone ? theme.color.success : theme.color.line,
                   backgroundColor: isDone ? theme.color.success : "transparent",
@@ -460,12 +553,24 @@ function ActionsTab({ meeting, done, setDone }: { meeting: Meeting; done: Record
                   marginTop: 1
                 }}
               >
-                {isDone ? <Icon name="Check" size={12} color="#fff" /> : null}
+                {isDone ? <Icon name="Check" size={13} color="#fff" /> : null}
               </View>
-              <Text variant="body" style={{ flex: 1, textDecorationLine: isDone ? "line-through" : "none", color: isDone ? theme.color.inkFaint : theme.color.ink }}>
-                {a.task}
-                {a.assignee ? ` — ${a.assignee}` : ""}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text
+                  variant="body"
+                  style={{
+                    textDecorationLine: isDone ? "line-through" : "none",
+                    color: isDone ? theme.color.inkFaint : theme.color.ink
+                  }}
+                >
+                  {a.task}
+                </Text>
+                {a.assignee ? (
+                  <Text variant="caption" tone="mute" style={{ marginTop: 2 }}>
+                    {a.assignee}
+                  </Text>
+                ) : null}
+              </View>
             </Pressable>
           );
         })}
@@ -484,17 +589,20 @@ function MomentsTab({ moments, onSeek }: { moments: ReturnType<typeof deriveMome
   }
   return (
     <Card>
-      <View style={{ gap: 14 }}>
+      <View style={{ gap: 6 }}>
         {moments.map((m, i) => (
-          <Pressable key={i} onPress={() => onSeek(m.startTime)} style={{ flexDirection: "row", gap: 10 }}>
+          <Pressable
+            key={i}
+            onPress={() => onSeek(m.startTime)}
+            accessibilityRole="button"
+            accessibilityLabel={`Jump to ${m.speaker} at ${formatDuration(m.startTime)}`}
+            style={({ pressed }) => ({ flexDirection: "row", gap: 10, minHeight: 44, paddingVertical: 8, opacity: pressed ? 0.7 : 1 })}
+          >
             <Avatar name={m.speaker || "?"} size={28} />
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
                 <Text variant="label">{m.speaker}</Text>
                 <Badge label={m.label} tone={m.label === "positive" ? "positive" : m.label === "negative" ? "negative" : "neutral"} />
-                <Text variant="caption" tone="faint">
-                  {formatDuration(m.startTime)}
-                </Text>
               </View>
               {m.quote ? (
                 <Text variant="body" tone="soft" style={{ fontStyle: "italic" }}>
@@ -502,6 +610,8 @@ function MomentsTab({ moments, onSeek }: { moments: ReturnType<typeof deriveMome
                 </Text>
               ) : null}
             </View>
+            {/* Play-time chip: makes "tap to jump" obvious */}
+            <PlayTimeChip time={m.startTime} />
           </Pressable>
         ))}
       </View>
@@ -533,7 +643,14 @@ function SpeakersTab({ meeting, active, onFilter }: { meeting: Meeting; active?:
           const sent = perSpeaker.find((p) => p.speaker === name);
           const isActive = active === name;
           return (
-            <Pressable key={name} onPress={() => onFilter(name)} style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+            <Pressable
+              key={name}
+              onPress={() => onFilter(name)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={`Filter transcript by ${name}`}
+              style={({ pressed }) => ({ flexDirection: "row", gap: 10, alignItems: "center", minHeight: 44, opacity: pressed ? 0.7 : 1 })}
+            >
               <Avatar name={name} size={30} />
               <View style={{ flex: 1 }}>
                 <View style={styles.rowBetween}>
@@ -557,7 +674,8 @@ function SpeakersTab({ meeting, active, onFilter }: { meeting: Meeting; active?:
 
 const styles = StyleSheet.create({
   badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" },
+  metaChip: { flexDirection: "row", alignItems: "center", gap: 5 },
   actions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }
 });
