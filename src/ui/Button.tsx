@@ -1,6 +1,7 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from "react-native";
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, type ViewStyle } from "react-native";
 import { useTheme } from "../core/theme/ThemeProvider";
+import { usePressScale } from "./motion";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -31,21 +32,29 @@ export function Button({
           ? theme.color.surfaceHi
           : "transparent";
   const fg = variant === "primary" || variant === "danger" ? "#FFFFFF" : theme.color.ink;
+  const { onPressIn, onPressOut, pressStyle } = usePressScale(0.97);
 
+  // Animate the Pressable itself (not a wrapper) so the caller's `style`
+  // — including layout props like flex:1 — stays exactly where it was.
+  // Plain array style (not a function): createAnimatedComponent doesn't invoke
+  // function styles, and the scale gives the press feedback.
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={[
         styles.base,
         {
           backgroundColor: bg,
           borderRadius: theme.radii.md,
           borderWidth: variant === "ghost" ? 1 : 0,
           borderColor: theme.color.line,
-          opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1
+          opacity: isDisabled ? 0.5 : 1
         },
-        style
+        style,
+        pressStyle
       ]}
     >
       {loading ? (
@@ -53,9 +62,11 @@ export function Button({
       ) : (
         <Text style={[styles.label, { color: fg, fontSize: theme.fontSize.md }]}>{title}</Text>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const styles = StyleSheet.create({
   base: { height: 48, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },

@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/core/auth/AuthProvider";
 import { queryClient } from "./src/core/query/queryClient";
 import { ThemeProvider, useTheme } from "./src/core/theme/ThemeProvider";
+import { MotionProvider } from "./src/ui/motion";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 
 // StatusBar text colour must follow the resolved theme, so it lives inside
@@ -19,10 +20,12 @@ export default function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <AuthProvider>
-            <ThemedStatusBar />
-            <RootNavigator />
-          </AuthProvider>
+          <MotionProvider>
+            <AuthProvider>
+              <ThemedStatusBar />
+              <RootNavigator />
+            </AuthProvider>
+          </MotionProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

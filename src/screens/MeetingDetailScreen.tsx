@@ -270,6 +270,7 @@ export function MeetingDetailScreen({ route, navigation }: Props) {
         {meeting.recordingUrl ? (
           <RecordingPlayer
             uri={meeting.recordingUrl}
+            poster={meeting.thumbnailUrl}
             seekTo={seekTo}
             onProgress={(t, d) => {
               setCurrentTime(t);

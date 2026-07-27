@@ -1,8 +1,9 @@
 import { FlashList } from "@shopify/flash-list";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -215,22 +216,40 @@ export function MeetingsListScreen({ navigation }: Props) {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
-    queryKey: ["meetings", { page: 1, platform, search }],
-    queryFn: () =>
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["meetings", { platform, search }],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
       listMeetings({
-        page: 1,
+        page: pageParam,
         pageSize: 20,
         platform: platform || undefined,
         search: search || undefined,
       }),
+    // The API returns hasMore; advance to the next page until it's false.
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
   });
   const { data: stats } = useQuery({
     queryKey: ["meetingStats"],
     queryFn: getMeetingStats,
   });
 
-  const items = data?.items ?? [];
+  // Flatten all loaded pages into a single list for the FlashList.
+  const items = useMemo(() => (data?.pages ?? []).flatMap((p) => p.items), [data]);
+  const total = data?.pages?.[0]?.total;
+
+  function loadMore() {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }
   const input = {
     height: 46,
     borderWidth: 1,
@@ -272,7 +291,7 @@ export function MeetingsListScreen({ navigation }: Props) {
           <StatChip
             icon="Meetings"
             label="total"
-            value={String(stats?.total ?? data?.total ?? items.length)}
+            value={String(stats?.total ?? total ?? items.length)}
           />
           <StatChip
             icon="Video"
@@ -343,7 +362,7 @@ export function MeetingsListScreen({ navigation }: Props) {
     ),
     [
       stats,
-      data?.total,
+      total,
       items.length,
       searchInput,
       platform,
@@ -376,6 +395,19 @@ export function MeetingsListScreen({ navigation }: Props) {
               onRefresh={refetch}
               tintColor={theme.color.accent}
             />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator color={theme.color.accent} />
+              </View>
+            ) : !hasNextPage && items.length > 0 ? (
+              <Text variant="caption" tone="faint" style={{ textAlign: "center", paddingVertical: 20 }}>
+                That's all your meetings
+              </Text>
+            ) : null
           }
           renderItem={({ item }) => (
             <MeetingRow

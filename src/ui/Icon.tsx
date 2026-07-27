@@ -11,7 +11,7 @@ export type IconName =
   | "ArrowRight" | "ArrowUp" | "ArrowDown" | "ChevronLeft" | "ChevronRight" | "ChevronDown"
   | "Close" | "Refresh" | "Link" | "Download" | "Video" | "Copy" | "Bolt" | "Brain" | "Mic"
   | "Filter" | "Plus" | "Cog" | "Trend" | "Quote" | "ExternalLink" | "Layers" | "Hash"
-  | "Mail" | "Lock" | "User" | "Trash";
+  | "Mail" | "Lock" | "User" | "Trash" | "Eye" | "EyeOff";
 
 const STROKE: Partial<Record<IconName, (c: string) => React.ReactNode>> = {
   Dashboard: (c) => (
@@ -100,6 +100,20 @@ const STROKE: Partial<Record<IconName, (c: string) => React.ReactNode>> = {
   ChevronRight: (c) => <Path d="M9 6l6 6 -6 6" stroke={c} />,
   ChevronDown: (c) => <Path d="M6 9l6 6 6 -6" stroke={c} />,
   Close: (c) => <Path d="M6 6l12 12M18 6l-12 12" stroke={c} />,
+  Eye: (c) => (
+    <>
+      <Path d="M2 12s3.5 -7 10 -7 10 7 10 7 -3.5 7 -10 7 -10 -7 -10 -7z" stroke={c} />
+      <Circle cx={12} cy={12} r={3} stroke={c} />
+    </>
+  ),
+  EyeOff: (c) => (
+    <>
+      <Path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1 -2.16 3.19" stroke={c} />
+      <Path d="M6.61 6.61A18.45 18.45 0 0 0 2 12s3 8 10 8a9.12 9.12 0 0 0 5.39 -1.61" stroke={c} />
+      <Path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" stroke={c} />
+      <Path d="M3 3l18 18" stroke={c} />
+    </>
+  ),
   Refresh: (c) => (
     <>
       <Path d="M20 11a8 8 0 1 0 -1 5" stroke={c} />

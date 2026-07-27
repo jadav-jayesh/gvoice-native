@@ -18,6 +18,7 @@ import { ActionItemsCard } from "../features/insights/ActionItemsCard";
 import { ParticipationCard } from "../features/insights/ParticipationCard";
 import { RangeFilter } from "../features/insights/RangeFilter";
 import { TopicsCard } from "../features/insights/TopicsCard";
+import { FadeSlideIn } from "../ui/motion";
 
 function getWeek(date: Date): number {
   const jan1 = new Date(date.getFullYear(), 0, 1);
@@ -87,17 +88,22 @@ function deriveInsights(items: MeetingListItem[]) {
   };
 }
 
-function SummaryStat({ label, value, accent, caption }: { label: string; value: string; accent: string; caption: string }) {
+function SummaryStat({ label, value, accent, caption, delay = 0 }: { label: string; value: string; accent: string; caption: string; delay?: number }) {
   return (
-    <Card style={{ flexGrow: 1, flexBasis: "46%" }}>
-      <Text variant="caption" tone="mute">
-        {label.toUpperCase()}
-      </Text>
-      <Text style={{ fontSize: 28, fontWeight: "700", color: accent, marginVertical: 2 }}>{value}</Text>
-      <Text variant="caption" tone="faint">
-        {caption}
-      </Text>
-    </Card>
+    <FadeSlideIn delay={delay} style={{ flexGrow: 1, flexBasis: "46%" }}>
+      <Card>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: accent }} />
+          <Text variant="caption" tone="mute">
+            {label.toUpperCase()}
+          </Text>
+        </View>
+        <Text style={{ fontSize: 28, fontWeight: "700", color: accent, marginBottom: 2, fontVariant: ["tabular-nums"] }}>{value}</Text>
+        <Text variant="caption" tone="faint">
+          {caption}
+        </Text>
+      </Card>
+    </FadeSlideIn>
   );
 }
 
@@ -139,10 +145,11 @@ export function InsightsScreen() {
               value={ins.avgScore.toFixed(2)}
               accent={ins.avgScore > 0.1 ? theme.color.success : ins.avgScore < -0.1 ? theme.color.danger : theme.color.inkMute}
               caption={ins.avgScore > 0.2 ? "Mostly positive" : ins.avgScore < -0.2 ? "Mostly negative" : "Mostly neutral"}
+              delay={0}
             />
-            <SummaryStat label="Positive share" value={`${ins.positiveShare}%`} accent={theme.color.success} caption={`${ins.dist.positive} of ${ins.sentimentTotal} meetings`} />
-            <SummaryStat label="Speakers tracked" value={String(ins.totalSpeakers)} accent={theme.color.ink} caption={`${ins.activeSpeakers} active recently`} />
-            <SummaryStat label="Avg participants" value={ins.avgParticipants.toFixed(1)} accent={theme.color.accent} caption="Per meeting" />
+            <SummaryStat label="Positive share" value={`${ins.positiveShare}%`} accent={theme.color.success} caption={`${ins.dist.positive} of ${ins.sentimentTotal} meetings`} delay={40} />
+            <SummaryStat label="Speakers tracked" value={String(ins.totalSpeakers)} accent={theme.color.ink} caption={`${ins.activeSpeakers} active recently`} delay={80} />
+            <SummaryStat label="Avg participants" value={ins.avgParticipants.toFixed(1)} accent={theme.color.accent} caption="Per meeting" delay={120} />
           </View>
 
           {/* Sentiment ring + trend */}

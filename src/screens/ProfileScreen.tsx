@@ -8,6 +8,7 @@ import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { Icon } from "../ui/Icon";
 import { Screen } from "../ui/Screen";
 import { Text } from "../ui/Text";
 import { ChangePasswordCard } from "../features/auth/ChangePasswordCard";
@@ -31,6 +32,17 @@ export function ProfileScreen() {
     setLast(user?.lastName ?? "");
   }, [user?.firstName, user?.lastName]);
 
+  const input = {
+    height: 48,
+    borderWidth: 1,
+    borderColor: theme.color.line,
+    borderRadius: theme.radii.md,
+    paddingHorizontal: 14,
+    color: theme.color.ink,
+    backgroundColor: theme.color.surface,
+    fontSize: theme.fontSize.md
+  };
+
   const dirty = !!user && (firstName.trim() !== user.firstName || lastName.trim() !== user.lastName);
 
   async function save() {
@@ -47,41 +59,37 @@ export function ProfileScreen() {
     }
   }
 
-  const input = {
-    height: 48,
-    borderWidth: 1,
-    borderColor: theme.color.line,
-    borderRadius: theme.radii.md,
-    paddingHorizontal: 14,
-    color: theme.color.ink,
-    backgroundColor: theme.color.surface,
-    fontSize: theme.fontSize.md
-  };
-
   return (
     <Screen scroll contentStyle={{ gap: 16 }}>
       <Text variant="title">Profile</Text>
 
       <Card>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 18 }}>
           <Avatar name={user ? `${user.firstName} ${user.lastName}` : "?"} size={56} />
           <View style={{ flex: 1 }}>
-            <Text variant="heading">{user ? `${user.firstName} ${user.lastName}` : "—"}</Text>
-            <Text variant="body" tone="mute">
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Text variant="heading">{user ? `${user.firstName} ${user.lastName}` : "—"}</Text>
+              {user?.role === "admin" ? (
+                <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: theme.radii.pill, backgroundColor: theme.color.accent + "22" }}>
+                  <Text variant="caption" style={{ color: theme.color.accent, fontWeight: "700" }}>
+                    ADMIN
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <Text variant="body" tone="mute" numberOfLines={1}>
               {user?.email}
             </Text>
-            {user?.role === "admin" ? (
-              <Text variant="caption" tone="accent" style={{ marginTop: 4 }}>
-                ADMIN
-              </Text>
-            ) : null}
           </View>
         </View>
 
         {saved ? (
-          <Text variant="label" style={{ color: theme.color.success, marginBottom: 10 }}>
-            Changes saved.
-          </Text>
+          <View style={styles.savedRow}>
+            <Icon name="CheckCircle" size={15} color={theme.color.success} />
+            <Text variant="label" style={{ color: theme.color.success }}>
+              Changes saved.
+            </Text>
+          </View>
         ) : null}
         <View style={{ gap: 12 }}>
           <View style={{ flexDirection: "row", gap: 12 }}>
@@ -94,19 +102,21 @@ export function ProfileScreen() {
       </Card>
 
       <Card>
-        <Text variant="label" tone="mute" style={{ marginBottom: 12 }}>
+        <Text variant="label" tone="mute" style={{ marginBottom: 12, letterSpacing: 0.3 }}>
           APPEARANCE
         </Text>
-        <View style={styles.segment}>
+        <View style={[styles.segment, { backgroundColor: theme.color.surfaceHi, borderRadius: theme.radii.md, padding: 4 }]}>
           {PREFS.map((p) => {
             const active = preference === p;
             return (
               <Pressable
                 key={p}
                 onPress={() => setPreference(p)}
-                style={[styles.segmentItem, { backgroundColor: active ? theme.color.accent : theme.color.surfaceHi, borderRadius: theme.radii.sm }]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                style={[styles.segmentItem, { backgroundColor: active ? theme.color.accent : "transparent", borderRadius: theme.radii.sm }]}
               >
-                <Text style={{ color: active ? "#fff" : theme.color.ink, fontWeight: "600", fontSize: theme.fontSize.sm }}>
+                <Text style={{ color: active ? "#fff" : theme.color.inkMute, fontWeight: "600", fontSize: theme.fontSize.sm }}>
                   {p[0].toUpperCase() + p.slice(1)}
                 </Text>
               </Pressable>
@@ -143,6 +153,7 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  segment: { flexDirection: "row", gap: 8 },
-  segmentItem: { flex: 1, height: 40, alignItems: "center", justifyContent: "center" }
+  segment: { flexDirection: "row", gap: 4 },
+  segmentItem: { flex: 1, height: 40, alignItems: "center", justifyContent: "center" },
+  savedRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }
 });

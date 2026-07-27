@@ -15,6 +15,8 @@ import { MeetingDetailScreen } from "../screens/MeetingDetailScreen";
 import { RecordMeetingScreen } from "../screens/RecordMeetingScreen";
 import { InsightsScreen } from "../screens/InsightsScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
+import { TermsScreen } from "../screens/TermsScreen";
+import { PrivacyScreen } from "../screens/PrivacyScreen";
 import type { AppTabsParamList, AuthStackParamList, MeetingsStackParamList } from "./types";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -132,6 +134,8 @@ export function RootNavigator() {
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>
           <AuthStack.Screen name="Login" component={LoginScreen} />
           <AuthStack.Screen name="Signup" component={SignupScreen} />
+          <AuthStack.Screen name="Terms" component={TermsScreen} options={{ headerShown: true, title: "Terms & Conditions" }} />
+          <AuthStack.Screen name="Privacy" component={PrivacyScreen} options={{ headerShown: true, title: "Privacy Policy" }} />
         </AuthStack.Navigator>
       )}
     </NavigationContainer>
