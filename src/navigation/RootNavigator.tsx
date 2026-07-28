@@ -14,6 +14,7 @@ import { MeetingsListScreen } from "../screens/MeetingsListScreen";
 import { MeetingDetailScreen } from "../screens/MeetingDetailScreen";
 import { RecordMeetingScreen } from "../screens/RecordMeetingScreen";
 import { InsightsScreen } from "../screens/InsightsScreen";
+import { AdminScreen } from "../screens/AdminScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { TermsScreen } from "../screens/TermsScreen";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
@@ -48,11 +49,15 @@ const TAB_ICON: Record<keyof AppTabsParamList, IconName> = {
   Dashboard: "Dashboard",
   Meetings: "Mic",
   Insights: "Insights",
+  Admin: "Cog",
   Profile: "User"
 };
 
 function AppTabs() {
   const { theme } = useTheme();
+  // Only admins get the Admin tab — the backend also gates every admin route,
+  // so a non-admin can't reach it even if the tab were shown.
+  const isAdmin = useAuth().user?.role === "admin";
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
@@ -77,6 +82,7 @@ function AppTabs() {
         })}
       />
       <Tabs.Screen name="Insights" component={InsightsScreen} />
+      {isAdmin ? <Tabs.Screen name="Admin" component={AdminScreen} /> : null}
       <Tabs.Screen name="Profile" component={ProfileScreen} />
     </Tabs.Navigator>
   );

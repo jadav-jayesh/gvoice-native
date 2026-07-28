@@ -10,6 +10,7 @@ export type AppTabsParamList = {
   Dashboard: undefined;
   Meetings: NavigatorScreenParams<MeetingsStackParamList> | undefined;
   Insights: undefined;
+  Admin: undefined;
   Profile: undefined;
 };
 
