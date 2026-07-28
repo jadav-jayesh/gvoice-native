@@ -343,6 +343,14 @@ export function adminSetUserRole(
   );
 }
 
+// Admin resets a locked-out user's password (not their own).
+export function adminSetUserPassword(id: string, newPassword: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/api/admin/users/${encodeURIComponent(id)}/password`, {
+    method: "PATCH",
+    body: JSON.stringify({ newPassword })
+  });
+}
+
 export interface AdminAnalyticsSummary {
   userCount: number;
   meetingCount: number;

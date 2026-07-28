@@ -7,6 +7,7 @@ import {
   adminGetSettings,
   adminListUsers,
   adminRevertSetting,
+  adminSetUserPassword,
   adminSetUserRole,
   adminTestSetting,
   adminUpdateSetting,
@@ -25,11 +26,14 @@ import { ConfirmModal } from "../ui/ConfirmModal";
 import { EmptyState } from "../ui/EmptyState";
 import { ErrorRetry } from "../ui/ErrorRetry";
 import { Icon, type IconName } from "../ui/Icon";
+import { PasswordInput } from "../ui/PasswordInput";
 import { Screen } from "../ui/Screen";
 import { Segmented } from "../ui/Segmented";
+import { Sheet } from "../ui/Sheet";
 import { Skeleton } from "../ui/Skeleton";
 import { Sparkline } from "../ui/charts/Sparkline";
 import { Text } from "../ui/Text";
+import { PasswordRequirements } from "../features/auth/PasswordRequirements";
 
 type AdminTab = "analytics" | "users" | "settings";
 
@@ -201,6 +205,7 @@ function UsersView() {
   const [role, setRole] = useState<UserRole | "">("");
   const [page, setPage] = useState(1);
   const [confirm, setConfirm] = useState<{ user: AdminUser; next: UserRole } | null>(null);
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -299,12 +304,15 @@ function UsersView() {
                   </View>
                 </View>
                 {!isSelf ? (
-                  <Button
-                    title={isAdmin ? "Demote to user" : "Make admin"}
-                    variant={isAdmin ? "ghost" : "secondary"}
-                    onPress={() => setConfirm({ user: u, next: isAdmin ? "user" : "admin" })}
-                    style={{ marginTop: 12, height: 40 }}
-                  />
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+                    <Button
+                      title={isAdmin ? "Demote" : "Make admin"}
+                      variant={isAdmin ? "ghost" : "secondary"}
+                      onPress={() => setConfirm({ user: u, next: isAdmin ? "user" : "admin" })}
+                      style={{ flex: 1, height: 40 }}
+                    />
+                    <Button title="Reset password" variant="secondary" onPress={() => setResetUser(u)} style={{ flex: 1, height: 40 }} />
+                  </View>
                 ) : null}
               </Card>
             );
@@ -342,7 +350,76 @@ function UsersView() {
         onConfirm={() => confirm && setRoleMut.mutate({ id: confirm.user.id, next: confirm.next })}
         onCancel={() => setConfirm(null)}
       />
+
+      <ResetPasswordSheet user={resetUser} onClose={() => setResetUser(null)} />
     </View>
+  );
+}
+
+// Bottom sheet: an admin types a new strong password for a locked-out user.
+// No email is sent — the admin shares the password out-of-band.
+function ResetPasswordSheet({ user, onClose }: { user: AdminUser | null; onClose: () => void }) {
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  // Reset local state whenever a different user is opened.
+  useEffect(() => {
+    setValue("");
+    setError(null);
+    setDone(false);
+    setBusy(false);
+  }, [user?.id]);
+
+  const strong = useMemo(
+    () => value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value),
+    [value]
+  );
+
+  async function submit() {
+    if (!user || !strong) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await adminSetUserPassword(user.id, value);
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message.replace(/^\d+ [^—]*— ?/, "") : "Couldn't reset the password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const name = user ? `${user.firstName} ${user.lastName}`.trim() || user.email : "";
+
+  return (
+    <Sheet visible={!!user} onClose={onClose} eyebrow="Admin" title="Reset password">
+      {done ? (
+        <View style={{ gap: 12 }}>
+          <Text variant="body" tone="soft" style={{ lineHeight: 22 }}>
+            Password updated for <Text style={{ fontWeight: "700" }}>{name}</Text>. Share the new password with them
+            securely — they can sign in with it right away.
+          </Text>
+          <Button title="Done" onPress={onClose} />
+        </View>
+      ) : (
+        <View style={{ gap: 12 }}>
+          <Text variant="body" tone="mute" style={{ lineHeight: 22 }}>
+            Set a new password for <Text style={{ fontWeight: "700" }}>{name}</Text>. No email is sent — you'll need to
+            share it with them.
+          </Text>
+          <PasswordInput value={value} onChangeText={setValue} placeholder="New password" autoCapitalize="none" />
+          <PasswordRequirements value={value} />
+          {error ? (
+            <Text tone="danger" variant="label">
+              {error}
+            </Text>
+          ) : null}
+          <Button title="Reset password" onPress={submit} loading={busy} disabled={!strong} />
+        </View>
+      )}
+    </Sheet>
   );
 }
 
